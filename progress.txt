@@ -1,0 +1,9 @@
+Task 1.1: Schemas & conftest setup for system router — DONE
+Task 1.2: Version endpoint (TDD) — DONE
+Task 1.3: Check-update endpoint (TDD) — DONE
+Task 1.4: Update endpoint (TDD) — DONE
+Task 1.5: Frontend types & API client — DONE
+Task 1.6: About page & routing — DONE
+Task 2.1: ICS calendar model, migration, schemas — DONE
+Task 2.2: ICS calendar CRUD router (TDD) — DONE
+Task 2.3: ICS parsing service (TDD) — DONE
