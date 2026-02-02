@@ -27,11 +27,13 @@ export default function WidgetConfig({ widget, onClose, onSaved }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
 
+  const configJson = JSON.stringify(widget.config);
+
   useEffect(() => {
-    setConfig(widget.config);
+    setConfig(JSON.parse(configJson));
     setDirty(false);
     setError(null);
-  }, [widget.id, widget.config]);
+  }, [widget.id, configJson]);
 
   const handleChange = useCallback((newConfig: Record<string, any>) => {
     setConfig(newConfig);
