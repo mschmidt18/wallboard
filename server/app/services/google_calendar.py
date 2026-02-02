@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 import httpx
 
@@ -40,7 +41,7 @@ async def fetch_events(
 
     async with httpx.AsyncClient() as client:
         for calendar_id in calendar_ids:
-            url = CALENDAR_EVENTS_URL.format(calendar_id=calendar_id)
+            url = CALENDAR_EVENTS_URL.format(calendar_id=quote(calendar_id, safe=""))
             params = {
                 "timeMin": time_min,
                 "timeMax": time_max,
