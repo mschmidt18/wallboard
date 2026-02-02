@@ -7,6 +7,9 @@ import type {
   LayoutListItem,
   LayoutUpdate,
   Settings,
+  UpdateCheckResponse,
+  UpdateResponse,
+  VersionResponse,
   Widget,
   WidgetCreate,
   WidgetPositionUpdate,
@@ -120,4 +123,9 @@ export const api = {
     request<{ id: string; name: string; color: string }[]>("/google/calendars"),
   getGooglePhotoAlbums: () =>
     request<{ id: string; title: string; count: number }[]>("/google/photos/albums"),
+  getVersion: () => request<VersionResponse>("/system/version"),
+  checkUpdate: () =>
+    request<UpdateCheckResponse>("/system/check-update", { method: "POST" }),
+  runUpdate: () =>
+    request<UpdateResponse>("/system/update", { method: "POST" }),
 };

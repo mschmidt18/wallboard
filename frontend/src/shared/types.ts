@@ -104,3 +104,26 @@ export interface Settings {
   display_refresh_interval: number;
   log_level: string;
 }
+
+// --- System ---
+
+export interface VersionResponse {
+  commit: string | null;
+  commit_short: string | null;
+  commit_date: string | null;
+  branch: string | null;
+}
+
+export interface UpdateCheckResponse {
+  up_to_date: boolean | null;
+  commits_behind: number | null;
+  commits: string[];
+  error: string | null;
+}
+
+export interface UpdateResponse {
+  status: string;
+  steps_completed: string[];
+  step_failed: string | null;
+  fallback_instructions: string | null;
+}
