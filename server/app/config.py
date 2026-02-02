@@ -15,7 +15,7 @@ class Config:
         wallboard_dir = Path.home() / ".wallboard"
         return cls(
             db_path=wallboard_dir / "wallboard.db",
-            secret_key_path=Path("/etc/wallboard/secret.key"),
+            secret_key_path=wallboard_dir / "secret.key",
             log_path=Path("/var/log/wallboard/wallboard.log"),
         )
 

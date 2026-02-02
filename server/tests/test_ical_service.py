@@ -268,3 +268,25 @@ async def test_invalid_ics_content():
 
     # Invalid content should return empty list, not crash
     assert events == []
+
+
+@pytest.mark.asyncio
+async def test_follows_redirects():
+    """HTTP client should be configured to follow redirects (e.g. 302)."""
+    from server.app.services.ical_service import fetch_ics_events
+
+    response = _mock_httpx_response(SIMPLE_ICS)
+    client_instance = _make_async_client(response)
+
+    with patch("server.app.services.ical_service.httpx.AsyncClient") as MockClient, \
+         patch("server.app.services.ical_service._utcnow", return_value=FAKE_NOW):
+        MockClient.return_value = client_instance
+
+        await fetch_ics_events(
+            url="https://example.com/cal.ics",
+            days_ahead=30,
+            calendar_name="School",
+            color="#3b82f6",
+        )
+
+    MockClient.assert_called_once_with(follow_redirects=True)

@@ -33,7 +33,7 @@ async def fetch_ics_events(
         List of normalized event dicts with keys:
         title, start, end, calendar_name, color, all_day.
     """
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(follow_redirects=True) as client:
         response = await client.get(url, timeout=15.0)
         response.raise_for_status()
         ics_text = response.text
