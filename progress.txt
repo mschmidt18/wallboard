@@ -37,3 +37,11 @@ Issue #5 - Google Photos/Albums API pagination not handled - DONE
   - Added test `test_fetch_albums_paginates` verifying two pages of albums are combined
   - Added test `test_fetch_album_photos_paginates` verifying two pages of photos are combined
   - All 76 backend tests pass
+
+Issue #6 - Theme settings not applied to dashboard display - DONE
+  - Added theme CSS mapping constants in Dashboard.tsx for font_family, font_scale, and widget_background
+  - Applied `text_color` (light/dark) as CSS color on root dashboard element
+  - Applied `font_family` as CSS font-family on root dashboard element
+  - Applied `font_scale` as CSS font-size (rem) on root dashboard element
+  - Applied `widget_background` (transparent/semi-transparent/solid) as backgroundColor on each widget cell
+  - No lint errors in Dashboard.tsx; all 76 backend tests pass

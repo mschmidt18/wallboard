@@ -10,6 +10,25 @@ import PhotosWidget from "./widgets/PhotosWidget";
 const POLL_INTERVAL = 60_000;
 const LOCALSTORAGE_KEY = "wallboard_display_cache";
 
+const FONT_FAMILY_CSS: Record<string, string> = {
+  system: "ui-sans-serif, system-ui, sans-serif",
+  serif: "ui-serif, Georgia, serif",
+  monospace: "ui-monospace, monospace",
+  rounded: "'Nunito', 'Varela Round', ui-sans-serif, sans-serif",
+};
+
+const FONT_SCALE_CSS: Record<string, number> = {
+  small: 0.875,
+  medium: 1,
+  large: 1.125,
+};
+
+const WIDGET_BG_CSS: Record<string, string> = {
+  transparent: "transparent",
+  "semi-transparent": "rgba(0,0,0,0.4)",
+  solid: "#000000",
+};
+
 function WidgetRenderer({ widget }: { widget: Widget }) {
   switch (widget.widget_type) {
     case "clock":
@@ -73,11 +92,21 @@ export default function Dashboard() {
   }
 
   const { layout, widgets } = display;
+  const theme = layout.theme || {};
+  const textColor = theme.text_color === "dark" ? "#1a1a1a" : "#ffffff";
+  const fontFamily = FONT_FAMILY_CSS[theme.font_family] || FONT_FAMILY_CSS.system;
+  const fontScale = FONT_SCALE_CSS[theme.font_scale] || 1;
+  const widgetBg = WIDGET_BG_CSS[theme.widget_background] || WIDGET_BG_CSS["semi-transparent"];
 
   return (
     <div
       className="h-screen w-screen overflow-hidden"
-      style={{ background: layout.theme?.background || "#1a1a2e" }}
+      style={{
+        background: theme.background || "#1a1a2e",
+        color: textColor,
+        fontFamily,
+        fontSize: `${fontScale}rem`,
+      }}
     >
       <div
         className="grid h-full w-full p-4 gap-4"
@@ -92,6 +121,7 @@ export default function Dashboard() {
             style={{
               gridColumn: `${widget.position_x + 1} / span ${widget.width}`,
               gridRow: `${widget.position_y + 1} / span ${widget.height}`,
+              backgroundColor: widgetBg,
             }}
             className="rounded-lg overflow-hidden"
           >
