@@ -1,9 +1,29 @@
 import { useEffect, useState } from "react";
 import { api } from "../shared/api";
-import type { DisplayResponse } from "../shared/types";
+import type { DisplayResponse, Widget } from "../shared/types";
+import ClockWidget from "./widgets/ClockWidget";
+import NotesWidget from "./widgets/NotesWidget";
+import WeatherWidget from "./widgets/WeatherWidget";
+import CalendarWidget from "./widgets/CalendarWidget";
+import PhotosWidget from "./widgets/PhotosWidget";
 
 const POLL_INTERVAL = 60_000;
 const LOCALSTORAGE_KEY = "wallboard_display_cache";
+
+function WidgetRenderer({ widget }: { widget: Widget }) {
+  switch (widget.widget_type) {
+    case "clock":
+      return <ClockWidget config={widget.config} />;
+    case "notes":
+      return <NotesWidget config={widget.config} />;
+    case "weather":
+      return <WeatherWidget config={widget.config} data={widget.data} />;
+    case "calendar":
+      return <CalendarWidget config={widget.config} data={widget.data} />;
+    case "photos":
+      return <PhotosWidget config={widget.config} data={widget.data} />;
+  }
+}
 
 export default function Dashboard() {
   const [display, setDisplay] = useState<DisplayResponse | null>(() => {
@@ -65,10 +85,7 @@ export default function Dashboard() {
             }}
             className="rounded-lg overflow-hidden"
           >
-            {/* Widget components will be added in subsequent tasks */}
-            <div className="h-full w-full flex items-center justify-center text-white text-sm opacity-50">
-              {widget.widget_type}
-            </div>
+            <WidgetRenderer widget={widget} />
           </div>
         ))}
       </div>
