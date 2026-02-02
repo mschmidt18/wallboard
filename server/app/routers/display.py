@@ -59,11 +59,22 @@ def get_display(db: Session = Depends(get_db)):
     if not layout:
         raise HTTPException(status_code=404, detail="No active layout")
 
-    cache_entries = {c.source: c.data for c in db.query(Cache).all()}
+    # Compute needed cache keys from the active layout's widgets, then query only those
+    cache_keys = {}
+    for widget in layout.widgets:
+        key = _get_cache_key(widget)
+        if key:
+            cache_keys[widget.id] = key
+
+    needed_keys = set(cache_keys.values())
+    if needed_keys:
+        cache_entries = {c.source: c.data for c in db.query(Cache).filter(Cache.source.in_(needed_keys)).all()}
+    else:
+        cache_entries = {}
 
     widgets = []
     for widget in layout.widgets:
-        cache_key = _get_cache_key(widget)
+        cache_key = cache_keys.get(widget.id)
         data = cache_entries.get(cache_key) if cache_key else None
         widgets.append(DisplayWidgetResponse(
             id=widget.id,

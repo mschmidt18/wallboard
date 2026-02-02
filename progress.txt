@@ -104,3 +104,45 @@ Issue #14 - `display_refresh_interval` not wired to refresh loop or frontend - D
   - Added test `test_display_includes_custom_refresh_interval` verifying configured interval is reflected
   - Added test `test_refresh_loop_rereads_interval_from_settings` verifying loop reads from settings file
   - Frontend builds cleanly with TypeScript; all 105 backend tests pass
+
+Issue #15 - `wallboard update` CLI uses `npm install --production`, breaking the build - DONE (commit 09f1a1c)
+  - Changed `npm install --production` to `npm ci` in the `cmd_update` function in `bin/wallboard`
+  - `npm ci` installs all dependencies (including devDependencies like Vite, TypeScript, Tailwind) from lockfile
+  - This ensures `npm run build` succeeds after dependency installation
+  - All 105 backend tests pass
+
+Issue #16 - Install script file ownership: git clone as root, no chown afterward - DONE (commit 88fd542)
+  - Added `chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"` after git clone/reset step (line 125)
+  - Added `chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"` after frontend build step (line 142)
+  - First chown ensures all cloned/fetched repo files are owned by the wallboard user
+  - Second chown ensures npm install/build artifacts (node_modules, dist/) are also owned correctly
+  - Without this fix, the wallboard user cannot access files and `wallboard update` (git pull) fails with permission errors
+  - All 105 backend tests pass
+
+Issue #17 - Install script missing Alembic migration step - DONE (commit 97abdd1)
+  - Added `alembic upgrade head` to install.sh after Python deps are installed, before frontend build
+  - Runs as the wallboard service user with WALLBOARD_DB_PATH pointing to the correct database
+  - Added `alembic upgrade head` to `cmd_update` in `bin/wallboard` after pip install, before frontend rebuild
+  - Without this, Alembic migration tracking is never initialized and future schema changes cannot be applied
+  - All 105 backend tests pass
+
+Issue #18 - Display service `WantedBy=graphical.target` on headless Pi OS Lite - DONE (commit a51964f)
+  - Changed `WantedBy=graphical.target` to `WantedBy=multi-user.target` in `system/wallboard-display.service`
+  - Pi OS Lite boots to `multi-user.target`, not `graphical.target`, so the display service would never auto-start
+  - Now matches the server service which already uses `multi-user.target`
+  - All 105 backend tests pass
+
+Issue #19 - Display service missing video/input group access - DONE (commit 7cac449)
+  - Added `usermod -aG video,input wallboard` to install.sh after user creation
+  - Added `SupplementaryGroups=video input` to wallboard-display.service for defense-in-depth
+  - The wallboard user needs video and input group access for X server and Chromium kiosk mode
+  - Without these groups, X server startup fails because it cannot access /dev/dri/* and /dev/input/*
+  - All 105 backend tests pass
+
+Issue #20 - `display.py` loads entire cache table on every poll - DONE
+  - Changed `db.query(Cache).all()` to compute needed cache keys from the active layout's widgets first
+  - Now uses `db.query(Cache).filter(Cache.source.in_(needed_keys)).all()` to only load relevant entries
+  - Pre-computes cache keys per widget via `_get_cache_key`, collects unique keys, then does a single filtered query
+  - When no widgets need cache data (e.g., all clock/notes widgets), skips the query entirely
+  - Added test `test_display_only_loads_relevant_cache_entries` verifying correct data matching and `_get_cache_key` for all widget types
+  - All 106 backend tests pass
