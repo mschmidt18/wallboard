@@ -3,10 +3,11 @@ import logging
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import sessionmaker, Session
 from server.app.config import Config
-from server.app.models import Widget, Cache, Integration
+from server.app.models import Widget, Cache, Integration, IcsCalendar
 from server.app.services.weather import fetch_weather
 from server.app.services.google_calendar import fetch_events
 from server.app.services.google_photos import fetch_album_photos
+from server.app.services.ical_service import fetch_ics_events
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,7 @@ DEFAULT_INTERVALS = {
     "weather": timedelta(minutes=30),
     "google_calendar": timedelta(minutes=5),
     "google_photos": timedelta(minutes=15),
+    "ics_calendar": timedelta(minutes=15),
 }
 
 def _collect_data_sources(session: Session) -> list[dict]:
@@ -31,12 +33,43 @@ def _collect_data_sources(session: Session) -> list[dict]:
                         "params": {"lat": lat, "lon": lon, "units": config.get("units", "metric")},
                         "interval": DEFAULT_INTERVALS["weather"]}
         elif widget.widget_type == "calendar":
-            calendar_ids = sorted(config.get("calendar_ids", ["primary"]))
+            calendar_sources_list = config.get("calendar_sources")
             days_ahead = config.get("days_ahead", 7)
-            key = f"google_calendar_{'_'.join(calendar_ids)}_{days_ahead}"
-            if key not in sources:
-                sources[key] = {"type": "calendar", "key": key, "params": config,
-                    "interval": DEFAULT_INTERVALS["google_calendar"]}
+            if calendar_sources_list:
+                # New format: calendar_sources with type/id entries
+                google_ids = []
+                for cs in calendar_sources_list:
+                    if cs["type"] == "google":
+                        google_ids.append(cs["id"])
+                    elif cs["type"] == "ics":
+                        ics_cal = session.query(IcsCalendar).filter(IcsCalendar.id == cs["id"]).first()
+                        if ics_cal:
+                            ics_key = f"ics_calendar_{ics_cal.id}"
+                            if ics_key not in sources:
+                                sources[ics_key] = {
+                                    "type": "ics_calendar", "key": ics_key,
+                                    "params": {
+                                        "url": ics_cal.url,
+                                        "days_ahead": days_ahead,
+                                        "calendar_name": ics_cal.name,
+                                        "color": ics_cal.color,
+                                    },
+                                    "interval": DEFAULT_INTERVALS["ics_calendar"],
+                                }
+                if google_ids:
+                    sorted_ids = sorted(google_ids)
+                    key = f"google_calendar_{'_'.join(sorted_ids)}_{days_ahead}"
+                    if key not in sources:
+                        sources[key] = {"type": "calendar", "key": key,
+                            "params": {"calendar_ids": sorted_ids, "days_ahead": days_ahead},
+                            "interval": DEFAULT_INTERVALS["google_calendar"]}
+            else:
+                # Backward compat: old calendar_ids format
+                calendar_ids = sorted(config.get("calendar_ids", ["primary"]))
+                key = f"google_calendar_{'_'.join(calendar_ids)}_{days_ahead}"
+                if key not in sources:
+                    sources[key] = {"type": "calendar", "key": key, "params": config,
+                        "interval": DEFAULT_INTERVALS["google_calendar"]}
         elif widget.widget_type == "photos":
             album_id = config.get("album_id")
             if album_id:
@@ -109,6 +142,9 @@ async def _fetch_source(source: dict, session_factory: sessionmaker, config: Con
             return None
         photos = await fetch_album_photos(access_token=access_token, album_id=album_id)
         return {"photos": photos}
+    elif source_type == "ics_calendar":
+        events = await fetch_ics_events(**params)
+        return {"events": events}
     logger.warning(f"No fetcher for source type: {source_type}")
     return None
 

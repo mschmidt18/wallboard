@@ -7,3 +7,4 @@ Task 1.6: About page & routing — DONE
 Task 2.1: ICS calendar model, migration, schemas — DONE
 Task 2.2: ICS calendar CRUD router (TDD) — DONE
 Task 2.3: ICS parsing service (TDD) — DONE
+Task 2.4: Extend refresh service for ICS sources (TDD) — DONE
