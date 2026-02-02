@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 
 interface PhotosWidgetProps {
   config: {
@@ -25,7 +25,12 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
   const [backSrc, setBackSrc] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const photos: Photo[] = data?.photos ?? [];
+  const rawPhotos: Photo[] = data?.photos ?? [];
+  const photosKey = useMemo(
+    () => rawPhotos.map((p) => p.url).join(","),
+    [rawPhotos],
+  );
+  const photos = rawPhotos;
   const interval = (config.interval_seconds ?? 30) * 1000;
 
   const preloadImage = useCallback((src: string): Promise<void> => {
@@ -45,7 +50,7 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
     setFrontSrc(url);
     setBackSrc(null);
     setShowFront(true);
-  }, [data]);
+  }, [photosKey]);
 
   // Cycle through photos on interval
   useEffect(() => {
@@ -71,7 +76,7 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [photos.length, interval, preloadImage, data]);
+  }, [photos.length, interval, preloadImage, photosKey]);
 
   if (photos.length === 0) {
     return (

@@ -22,13 +22,23 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
       return <CalendarWidget config={widget.config} data={widget.data} />;
     case "photos":
       return <PhotosWidget config={widget.config} data={widget.data} />;
+    default:
+      return (
+        <div className="h-full flex items-center justify-center text-white/50 text-sm">
+          Unknown widget: {widget.widget_type}
+        </div>
+      );
   }
 }
 
 export default function Dashboard() {
   const [display, setDisplay] = useState<DisplayResponse | null>(() => {
-    const cached = localStorage.getItem(LOCALSTORAGE_KEY);
-    return cached ? JSON.parse(cached) : null;
+    try {
+      const cached = localStorage.getItem(LOCALSTORAGE_KEY);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
   });
   const [error, setError] = useState(false);
 
