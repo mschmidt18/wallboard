@@ -80,7 +80,7 @@ cmd_update() {
 
     echo "Rebuilding frontend..."
     cd "$INSTALL_DIR/frontend"
-    sudo -u "$WALLBOARD_USER" npm install --production
+    sudo -u "$WALLBOARD_USER" npm ci
     sudo -u "$WALLBOARD_USER" npm run build
 
     echo "Restarting services..."
