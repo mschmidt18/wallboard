@@ -5,7 +5,7 @@ interface PhotosWidgetProps {
     album_id?: string;
     interval_seconds?: number;
   };
-  data?: Record<string, any> | null;
+  data?: Record<string, unknown> | null;
 }
 
 interface Photo {
@@ -25,12 +25,14 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
   const [backSrc, setBackSrc] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const rawPhotos: Photo[] = data?.photos ?? [];
-  const photosKey = useMemo(
-    () => rawPhotos.map((p) => p.url).join(","),
-    [rawPhotos],
+  const photos: Photo[] = useMemo(
+    () => (data?.photos as Photo[] | undefined) ?? [],
+    [data?.photos],
   );
-  const photos = rawPhotos;
+  const photosKey = useMemo(
+    () => photos.map((p) => p.url).join(","),
+    [photos],
+  );
   const interval = (config.interval_seconds ?? 30) * 1000;
 
   const preloadImage = useCallback((src: string): Promise<void> => {
@@ -42,7 +44,10 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
     });
   }, []);
 
-  // Initialize the first image
+  // Initialize the first image when the photo set changes.
+  // photosKey is used instead of photos to avoid re-running when the array
+  // reference changes but the URLs haven't. setState is intentional here as
+  // this is a one-time initialization when the photo set changes.
   useEffect(() => {
     if (photos.length === 0) return;
     const url = getSizedUrl(photos[0].url);
@@ -50,6 +55,7 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
     setFrontSrc(url);
     setBackSrc(null);
     setShowFront(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- photos is derived from data; photosKey is the stable dep
   }, [photosKey]);
 
   // Cycle through photos on interval
@@ -76,6 +82,7 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- photos is derived from data; photosKey and photos.length are the stable deps
   }, [photos.length, interval, preloadImage, photosKey]);
 
   if (photos.length === 0) {
