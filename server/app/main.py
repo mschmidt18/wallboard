@@ -9,7 +9,7 @@ import structlog
 from server.app.config import Config
 from server.app.database import init_db, get_session_factory
 from server.app.logging import setup_logging
-from server.app.routers import layouts, widgets, display, integrations, google_data
+from server.app.routers import layouts, widgets, display, integrations, google_data, ics_calendars
 from server.app.routers import settings as settings_router
 from server.app.routers import system as system_router
 from server.app.services.refresh import start_refresh_loop
@@ -45,6 +45,7 @@ app.include_router(display.router)
 app.include_router(integrations.router)
 app.include_router(google_data.router)
 app.include_router(system_router.router)
+app.include_router(ics_calendars.router)
 
 
 logger = structlog.get_logger()
