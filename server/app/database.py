@@ -10,7 +10,11 @@ _session_factory = None
 
 def get_engine(db_path: Path):
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    return create_engine(f"sqlite:///{db_path}", echo=False)
+    return create_engine(
+        f"sqlite:///{db_path}",
+        echo=False,
+        connect_args={"check_same_thread": False},
+    )
 
 
 def init_db(db_path: Path):
