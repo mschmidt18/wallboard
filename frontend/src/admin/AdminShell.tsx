@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../shared/api";
+import { api, ApiError } from "../shared/api";
 import AdminLayout from "./AdminLayout";
 import Login from "./Login";
 
@@ -25,10 +25,10 @@ export default function AdminShell() {
         setAuthState("authenticated");
       } catch (err) {
         if (cancelled) return;
-        const message = err instanceof Error ? err.message : String(err);
-        if (message.includes("401")) {
+        if (err instanceof ApiError && err.status === 401) {
           setAuthState("unauthenticated");
         } else {
+          const message = err instanceof Error ? err.message : String(err);
           setErrorMessage(message);
           setAuthState("error");
         }
@@ -50,10 +50,10 @@ export default function AdminShell() {
       await api.getSettings();
       setAuthState("authenticated");
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.includes("401")) {
+      if (err instanceof ApiError && err.status === 401) {
         setAuthState("unauthenticated");
       } else {
+        const message = err instanceof Error ? err.message : String(err);
         setErrorMessage(message);
         setAuthState("error");
       }
