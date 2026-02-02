@@ -113,7 +113,7 @@ def auth_change_password(
     settings = _load_settings()
     pw_hash = settings.get("admin_password_hash", "")
     if not pw_hash or not verify_password(body.current_password, pw_hash):
-        raise HTTPException(status_code=400, detail="Current password is incorrect")
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
     settings["admin_password_hash"] = hash_password(body.new_password)
     _save_settings(settings)
     return {"status": "ok"}

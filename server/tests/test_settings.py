@@ -59,7 +59,7 @@ def test_change_password_rejects_wrong_current(client, tmp_config):
         "/api/auth/change-password",
         json={"current_password": "wrong", "new_password": "new456"},
     )
-    assert response.status_code == 400
+    assert response.status_code == 401
 
 
 def test_change_password_success(client, tmp_config):

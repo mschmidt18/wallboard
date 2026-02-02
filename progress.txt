@@ -244,3 +244,9 @@ Issue #33 - Configuration changes not logged - DONE
   - Added `logger.info("Integration disconnected: google")` after Google integration deletion in `disconnect_google`
   - Added 5 new tests in `test_config_change_logging.py`: activate_layout_is_logged, add_widget_is_logged, delete_widget_is_logged, google_connected_is_logged, google_disconnected_is_logged
   - All 126 backend tests pass
+
+Issue #34 - `auth_change_password` returns 400 for wrong password (should be 401) - DONE
+  - Changed `HTTPException(status_code=400, ...)` to `HTTPException(status_code=401, ...)` in `auth_change_password` in `settings.py`
+  - Now consistent with `auth_login` which already returns 401 for wrong password
+  - Updated existing test `test_change_password_rejects_wrong_current` to assert status 401 instead of 400
+  - All 126 backend tests pass
