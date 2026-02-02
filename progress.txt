@@ -11,3 +11,4 @@ Task 2.4: Extend refresh service for ICS sources (TDD) — DONE
 Task 2.5: Extend display router for multi-source merge (TDD) — DONE
 Task 2.6: Frontend types & API client for ICS — DONE
 Task 2.7: ICS calendar management UI in Integrations — DONE
+Task 2.8: Update CalendarConfig for multi-source selection — DONE

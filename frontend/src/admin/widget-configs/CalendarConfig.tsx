@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { api } from "../../shared/api";
+import type { CalendarSource, IcsCalendar } from "../../shared/types";
 
-interface CalendarEntry {
+interface GoogleCalendarEntry {
   id: string;
   name: string;
   color: string;
@@ -12,89 +13,211 @@ interface Props {
   onChange: (config: Record<string, unknown>) => void;
 }
 
+function sourceKey(source: CalendarSource): string {
+  return `${source.type}:${source.id}`;
+}
+
+/** Convert old calendar_ids config to calendar_sources format on load. */
+function initSources(config: Record<string, unknown>): CalendarSource[] {
+  const sources = config.calendar_sources as CalendarSource[] | undefined;
+  if (sources) return sources;
+  const oldIds = config.calendar_ids as string[] | undefined;
+  if (oldIds) {
+    return oldIds.map((id) => ({ type: "google" as const, id }));
+  }
+  return [];
+}
+
+function initColors(config: Record<string, unknown>): Record<string, string> {
+  return (config.colors as Record<string, string> | undefined) ?? {};
+}
+
 export default function CalendarConfig({ config, onChange }: Props) {
-  const [calendars, setCalendars] = useState<CalendarEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>((config.calendar_ids as string[] | undefined) ?? []);
+  const [googleCalendars, setGoogleCalendars] = useState<GoogleCalendarEntry[]>([]);
+  const [icsCalendars, setIcsCalendars] = useState<IcsCalendar[]>([]);
+  const [googleLoading, setGoogleLoading] = useState(true);
+  const [icsLoading, setIcsLoading] = useState(true);
+  const [googleError, setGoogleError] = useState(false);
+
+  const [selectedSources, setSelectedSources] = useState<CalendarSource[]>(() => initSources(config));
+  const [colors, setColors] = useState<Record<string, string>>(() => initColors(config));
   const [daysAhead, setDaysAhead] = useState<number>((config.days_ahead as number | undefined) ?? 7);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- synchronous loading state before async fetch is standard React pattern
     api
       .getGoogleCalendars()
       .then((data) => {
-        if (!cancelled) {
-          setCalendars(data);
-          setError(null);
-        }
+        if (!cancelled) setGoogleCalendars(data);
       })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load calendars");
-        }
+      .catch(() => {
+        if (!cancelled) setGoogleError(true);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setGoogleLoading(false);
+      });
+    api
+      .getIcsCalendars()
+      .then((data) => {
+        if (!cancelled) setIcsCalendars(data);
+      })
+      .catch(() => {
+        // ICS fetch failure is non-fatal; just show empty list
+      })
+      .finally(() => {
+        if (!cancelled) setIcsLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  function handleToggleCalendar(calId: string) {
-    const next = selectedIds.includes(calId)
-      ? selectedIds.filter((id) => id !== calId)
-      : [...selectedIds, calId];
-    setSelectedIds(next);
-    onChange({ ...config, calendar_ids: next, days_ahead: daysAhead });
+  function isSelected(source: CalendarSource): boolean {
+    return selectedSources.some((s) => s.type === source.type && String(s.id) === String(source.id));
+  }
+
+  function emitChange(nextSources: CalendarSource[], nextColors: Record<string, string>, nextDays: number) {
+    onChange({
+      calendar_sources: nextSources,
+      days_ahead: nextDays,
+      colors: nextColors,
+    });
+  }
+
+  function handleToggle(source: CalendarSource, defaultColor: string) {
+    let nextSources: CalendarSource[];
+    const nextColors = { ...colors };
+    if (isSelected(source)) {
+      nextSources = selectedSources.filter((s) => !(s.type === source.type && String(s.id) === String(source.id)));
+      delete nextColors[sourceKey(source)];
+    } else {
+      nextSources = [...selectedSources, source];
+      if (!nextColors[sourceKey(source)]) {
+        nextColors[sourceKey(source)] = defaultColor;
+      }
+    }
+    setSelectedSources(nextSources);
+    setColors(nextColors);
+    emitChange(nextSources, nextColors, daysAhead);
+  }
+
+  function handleColorChange(source: CalendarSource, color: string) {
+    const nextColors = { ...colors, [sourceKey(source)]: color };
+    setColors(nextColors);
+    emitChange(selectedSources, nextColors, daysAhead);
   }
 
   function handleDaysChange(value: number) {
     setDaysAhead(value);
-    onChange({ ...config, calendar_ids: selectedIds, days_ahead: value });
+    emitChange(selectedSources, colors, value);
   }
 
-  if (error) {
-    return (
-      <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
-        <p className="text-sm text-yellow-800">
-          Google Calendar is not connected. Please connect your Google account in the Integrations settings to configure calendar widgets.
-        </p>
-      </div>
-    );
-  }
+  const loading = googleLoading || icsLoading;
 
   return (
     <div className="space-y-4">
+      {/* Google Calendars Section */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Calendars</label>
-        {loading ? (
-          <p className="text-sm text-gray-500">Loading calendars...</p>
-        ) : calendars.length === 0 ? (
-          <p className="text-sm text-gray-500">No calendars found.</p>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Google Calendars</label>
+        {googleLoading ? (
+          <p className="text-sm text-gray-500">Loading Google calendars...</p>
+        ) : googleError ? (
+          <p className="text-sm text-gray-400">
+            Google Calendar not connected. Connect in Integrations to add Google calendars.
+          </p>
+        ) : googleCalendars.length === 0 ? (
+          <p className="text-sm text-gray-500">No Google calendars found.</p>
         ) : (
           <div className="space-y-2 max-h-48 overflow-y-auto">
-            {calendars.map((cal) => (
-              <label key={cal.id} className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(cal.id)}
-                  onChange={() => handleToggleCalendar(cal.id)}
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <span
-                  className="inline-block h-3 w-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: cal.color || "#6366f1" }}
-                />
-                {cal.name}
-              </label>
-            ))}
+            {googleCalendars.map((cal) => {
+              const source: CalendarSource = { type: "google", id: cal.id };
+              const key = sourceKey(source);
+              const selected = isSelected(source);
+              return (
+                <label key={cal.id} className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => handleToggle(source, cal.color || "#4285f4")}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  {selected && (
+                    <input
+                      type="color"
+                      value={colors[key] || cal.color || "#4285f4"}
+                      onChange={(e) => handleColorChange(source, e.target.value)}
+                      className="h-5 w-5 rounded border border-gray-300 cursor-pointer p-0"
+                    />
+                  )}
+                  {!selected && (
+                    <span
+                      className="inline-block h-3 w-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: cal.color || "#4285f4" }}
+                    />
+                  )}
+                  {cal.name}
+                </label>
+              );
+            })}
           </div>
         )}
       </div>
 
+      {/* ICS Calendars Section */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">ICS Calendars</label>
+        {icsLoading ? (
+          <p className="text-sm text-gray-500">Loading ICS calendars...</p>
+        ) : icsCalendars.length === 0 ? (
+          <p className="text-sm text-gray-400">
+            No ICS calendars configured. Add them in the Integrations page.
+          </p>
+        ) : (
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {icsCalendars.map((cal) => {
+              const source: CalendarSource = { type: "ics", id: cal.id };
+              const key = sourceKey(source);
+              const selected = isSelected(source);
+              return (
+                <label key={cal.id} className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => handleToggle(source, cal.color || "#6366f1")}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  {selected && (
+                    <input
+                      type="color"
+                      value={colors[key] || cal.color || "#6366f1"}
+                      onChange={(e) => handleColorChange(source, e.target.value)}
+                      className="h-5 w-5 rounded border border-gray-300 cursor-pointer p-0"
+                    />
+                  )}
+                  {!selected && (
+                    <span
+                      className="inline-block h-3 w-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: cal.color || "#6366f1" }}
+                    />
+                  )}
+                  {cal.name}
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* No sources at all */}
+      {!loading && googleError && icsCalendars.length === 0 && (
+        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+          <p className="text-sm text-yellow-800">
+            No calendar sources available. Connect Google Calendar or add ICS calendars in the Integrations page.
+          </p>
+        </div>
+      )}
+
+      {/* Days ahead slider */}
       <div>
         <label htmlFor="calendar-days" className="block text-sm font-medium text-gray-700 mb-1">
           Days ahead: {daysAhead}
