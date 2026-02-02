@@ -2,8 +2,10 @@ import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import sessionmaker, Session
-from server.app.models import Widget, Cache
+from server.app.models import Widget, Cache, Integration
 from server.app.services.weather import fetch_weather
+from server.app.services.google_calendar import fetch_events
+from server.app.services.google_photos import fetch_album_photos
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +53,51 @@ def _is_cache_fresh(session: Session, source_key: str) -> bool:
         expires = expires.replace(tzinfo=timezone.utc)
     return now < expires
 
-async def _fetch_source(source: dict) -> dict | None:
+def _get_google_access_token(session: Session) -> str | None:
+    """Get the Google access token from the integrations table."""
+    integration = session.query(Integration).filter(
+        Integration.provider == "google", Integration.status == "connected"
+    ).first()
+    if not integration:
+        return None
+    try:
+        import json
+        from server.app.services.encryption import load_or_create_key, decrypt
+        from pathlib import Path
+        key = load_or_create_key(Path("/etc/wallboard/secret.key"))
+        tokens = json.loads(decrypt(integration.credentials, key))
+        return tokens.get("access_token")
+    except Exception as e:
+        logger.error(f"Failed to decrypt Google credentials: {e}")
+        return None
+
+
+async def _fetch_source(source: dict, session_factory: sessionmaker) -> dict | None:
     source_type = source["type"]
     params = source["params"]
     if source_type == "weather":
         return await fetch_weather(**params)
+    elif source_type == "calendar":
+        with session_factory() as session:
+            access_token = _get_google_access_token(session)
+        if not access_token:
+            logger.warning("No Google access token for calendar fetch")
+            return None
+        calendar_ids = params.get("calendar_ids", ["primary"])
+        days_ahead = params.get("days_ahead", 7)
+        events = await fetch_events(access_token=access_token, calendar_ids=calendar_ids, days_ahead=days_ahead)
+        return {"events": events}
+    elif source_type == "photos":
+        with session_factory() as session:
+            access_token = _get_google_access_token(session)
+        if not access_token:
+            logger.warning("No Google access token for photos fetch")
+            return None
+        album_id = params.get("album_id")
+        if not album_id:
+            return None
+        photos = await fetch_album_photos(access_token=access_token, album_id=album_id)
+        return {"photos": photos}
     logger.warning(f"No fetcher for source type: {source_type}")
     return None
 
@@ -80,7 +122,7 @@ async def refresh_once(session_factory: sessionmaker):
                 logger.debug(f"Cache fresh for {source['key']}, skipping")
                 continue
         try:
-            data = await _fetch_source(source)
+            data = await _fetch_source(source, session_factory)
             if data is not None:
                 with session_factory() as session:
                     _update_cache(session, source["key"], data, source["interval"])
