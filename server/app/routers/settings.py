@@ -65,6 +65,17 @@ class PasswordBody(BaseModel):
     password: str
 
 
+class ChangePasswordBody(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.get("/api/auth/status")
+def auth_status():
+    settings = _load_settings()
+    return {"setup_required": not bool(settings.get("admin_password_hash"))}
+
+
 @router.post("/api/auth/setup")
 def auth_setup(body: PasswordBody):
     settings = _load_settings()
@@ -84,6 +95,20 @@ def auth_login(body: PasswordBody, response: Response):
     token = create_session_token()
     _sessions[token] = time.time() + SESSION_TTL
     response.set_cookie(key="session", value=token, httponly=True)
+    return {"status": "ok"}
+
+
+@router.post("/api/auth/change-password")
+def auth_change_password(
+    body: ChangePasswordBody, token: str = Cookie(None, alias="session")
+):
+    require_auth(token)
+    settings = _load_settings()
+    pw_hash = settings.get("admin_password_hash", "")
+    if not pw_hash or not verify_password(body.current_password, pw_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    settings["admin_password_hash"] = hash_password(body.new_password)
+    _save_settings(settings)
     return {"status": "ok"}
 
 

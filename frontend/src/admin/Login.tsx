@@ -2,23 +2,33 @@ import { useState, type FormEvent } from "react";
 import { api } from "../shared/api";
 
 interface LoginProps {
+  mode: "setup" | "login";
   onLogin: () => void;
 }
 
-export default function Login({ onLogin }: LoginProps) {
+export default function Login({ mode, onLogin }: LoginProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const isSetup = mode === "setup";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
+      if (isSetup) {
+        await api.setup(password);
+      }
       await api.login(password);
       onLogin();
     } catch {
-      setError("Invalid password. Please try again.");
+      setError(
+        isSetup
+          ? "Failed to create password. Please try again."
+          : "Invalid password. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -31,7 +41,9 @@ export default function Login({ onLogin }: LoginProps) {
           Wallboard
         </h1>
         <p className="text-sm text-gray-500 text-center mb-6">
-          Sign in to the admin panel
+          {isSetup
+            ? "Create a password to get started"
+            : "Sign in to the admin panel"}
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -39,7 +51,7 @@ export default function Login({ onLogin }: LoginProps) {
               htmlFor="password"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Password
+              {isSetup ? "Choose a password" : "Password"}
             </label>
             <input
               id="password"
@@ -47,7 +59,7 @@ export default function Login({ onLogin }: LoginProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Enter your password"
+              placeholder={isSetup ? "Choose a password" : "Enter your password"}
               required
               autoFocus
             />
@@ -60,7 +72,13 @@ export default function Login({ onLogin }: LoginProps) {
             disabled={loading}
             className="w-full py-2 px-4 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading
+              ? isSetup
+                ? "Setting up..."
+                : "Signing in..."
+              : isSetup
+                ? "Create password"
+                : "Sign in"}
           </button>
         </form>
       </div>

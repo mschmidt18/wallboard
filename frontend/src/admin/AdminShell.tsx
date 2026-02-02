@@ -3,7 +3,7 @@ import { api } from "../shared/api";
 import AdminLayout from "./AdminLayout";
 import Login from "./Login";
 
-type AuthState = "loading" | "authenticated" | "unauthenticated";
+type AuthState = "loading" | "authenticated" | "unauthenticated" | "setup";
 
 export default function AdminShell() {
   const [authState, setAuthState] = useState<AuthState>("loading");
@@ -14,6 +14,11 @@ export default function AdminShell() {
 
   async function checkAuth() {
     try {
+      const { setup_required } = await api.getAuthStatus();
+      if (setup_required) {
+        setAuthState("setup");
+        return;
+      }
       await api.getSettings();
       setAuthState("authenticated");
     } catch {
@@ -29,8 +34,16 @@ export default function AdminShell() {
     );
   }
 
+  if (authState === "setup") {
+    return (
+      <Login mode="setup" onLogin={() => setAuthState("authenticated")} />
+    );
+  }
+
   if (authState === "unauthenticated") {
-    return <Login onLogin={() => setAuthState("authenticated")} />;
+    return (
+      <Login mode="login" onLogin={() => setAuthState("authenticated")} />
+    );
   }
 
   return <AdminLayout onLogout={() => setAuthState("unauthenticated")} />;

@@ -18,6 +18,7 @@ from server.app.services.refresh import start_refresh_loop
 async def lifespan(app: FastAPI):
     config = Config.default()
     setup_logging(level=config.log_level)
+    settings_router.set_config(config)
     engine = init_db(config.db_path)
     session_factory = get_session_factory(engine)
     refresh_task = asyncio.create_task(

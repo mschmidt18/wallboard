@@ -49,6 +49,13 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(positions),
     }),
+  getAuthStatus: () =>
+    request<{ setup_required: boolean }>("/auth/status"),
+  setup: (password: string) =>
+    request<any>("/auth/setup", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
   login: (password: string) =>
     request<any>("/auth/login", {
       method: "POST",
