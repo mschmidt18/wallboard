@@ -60,6 +60,11 @@ async def google_callback(code: str, request: Request, db: Session = Depends(get
         redirect_uri=redirect_uri,
     )
 
+    # Store expires_at as absolute timestamp for refresh logic
+    import time
+    if "expires_in" in tokens and "expires_at" not in tokens:
+        tokens["expires_at"] = time.time() + tokens["expires_in"]
+
     key = load_or_create_key(KEY_PATH)
     encrypted = encrypt(json.dumps(tokens), key)
 

@@ -53,22 +53,31 @@ def _is_cache_fresh(session: Session, source_key: str) -> bool:
         expires = expires.replace(tzinfo=timezone.utc)
     return now < expires
 
-def _get_google_access_token(session: Session) -> str | None:
-    """Get the Google access token from the integrations table."""
-    integration = session.query(Integration).filter(
-        Integration.provider == "google", Integration.status == "connected"
-    ).first()
-    if not integration:
-        return None
+async def _get_google_access_token(session: Session) -> str | None:
+    """Get a valid Google access token, refreshing if expired."""
+    import json
+    from pathlib import Path
+    from server.app.services.encryption import load_or_create_key
+    from server.app.services.google_auth import get_valid_access_token
+
     try:
-        import json
-        from server.app.services.encryption import load_or_create_key, decrypt
-        from pathlib import Path
         key = load_or_create_key(Path("/etc/wallboard/secret.key"))
-        tokens = json.loads(decrypt(integration.credentials, key))
-        return tokens.get("access_token")
+        # Read settings to get client_id and client_secret for token refresh
+        settings_path = Path.home() / ".wallboard" / "settings.json"
+        settings = {}
+        if settings_path.exists():
+            settings = json.loads(settings_path.read_text())
+        client_id = settings.get("google_client_id", "")
+        client_secret = settings.get("google_client_secret", "")
+
+        return await get_valid_access_token(
+            session=session,
+            encryption_key=key,
+            client_id=client_id,
+            client_secret=client_secret,
+        )
     except Exception as e:
-        logger.error(f"Failed to decrypt Google credentials: {e}")
+        logger.error(f"Failed to get Google access token: {e}")
         return None
 
 
@@ -79,7 +88,7 @@ async def _fetch_source(source: dict, session_factory: sessionmaker) -> dict | N
         return await fetch_weather(**params)
     elif source_type == "calendar":
         with session_factory() as session:
-            access_token = _get_google_access_token(session)
+            access_token = await _get_google_access_token(session)
         if not access_token:
             logger.warning("No Google access token for calendar fetch")
             return None
@@ -89,7 +98,7 @@ async def _fetch_source(source: dict, session_factory: sessionmaker) -> dict | N
         return {"events": events}
     elif source_type == "photos":
         with session_factory() as session:
-            access_token = _get_google_access_token(session)
+            access_token = await _get_google_access_token(session)
         if not access_token:
             logger.warning("No Google access token for photos fetch")
             return None
