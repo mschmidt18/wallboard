@@ -122,6 +122,8 @@ else
 fi
 
 cd "$INSTALL_DIR"
+chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"
+success "File ownership set to $SERVICE_USER"
 
 python3 -m venv "$INSTALL_DIR/.venv"
 "$INSTALL_DIR/.venv/bin/pip" install --quiet --upgrade pip
@@ -137,6 +139,7 @@ info "Step 4/9: Building React frontend..."
 cd "$INSTALL_DIR/frontend"
 npm install --silent
 npm run build --silent
+chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"
 success "Frontend built to frontend/dist/"
 
 # ---------------------------------------------------------------------------
