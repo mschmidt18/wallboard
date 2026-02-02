@@ -8,25 +8,20 @@ interface CalendarEntry {
 }
 
 interface Props {
-  config: Record<string, any>;
-  onChange: (config: Record<string, any>) => void;
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
 }
 
 export default function CalendarConfig({ config, onChange }: Props) {
   const [calendars, setCalendars] = useState<CalendarEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>(config.calendar_ids ?? []);
-  const [daysAhead, setDaysAhead] = useState<number>(config.days_ahead ?? 7);
-
-  useEffect(() => {
-    setSelectedIds(config.calendar_ids ?? []);
-    setDaysAhead(config.days_ahead ?? 7);
-  }, [config]);
+  const [selectedIds, setSelectedIds] = useState<string[]>((config.calendar_ids as string[] | undefined) ?? []);
+  const [daysAhead, setDaysAhead] = useState<number>((config.days_ahead as number | undefined) ?? 7);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- synchronous loading state before async fetch is standard React pattern
     api
       .getGoogleCalendars()
       .then((data) => {

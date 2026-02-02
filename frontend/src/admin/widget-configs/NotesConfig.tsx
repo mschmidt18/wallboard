@@ -1,18 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface Props {
-  config: Record<string, any>;
-  onChange: (config: Record<string, any>) => void;
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
 }
 
 export default function NotesConfig({ config, onChange }: Props) {
-  const [content, setContent] = useState<string>(config.content ?? "");
-  const [fontSize, setFontSize] = useState<string>(config.font_size ?? "medium");
-
-  useEffect(() => {
-    setContent(config.content ?? "");
-    setFontSize(config.font_size ?? "medium");
-  }, [config]);
+  const [content, setContent] = useState<string>((config.content as string | undefined) ?? "");
+  const [fontSize, setFontSize] = useState<string>((config.font_size as string | undefined) ?? "medium");
 
   function handleChange(updates: Partial<{ content: string; font_size: string }>) {
     const next = {

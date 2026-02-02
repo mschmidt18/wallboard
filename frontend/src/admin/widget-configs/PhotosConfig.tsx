@@ -8,27 +8,21 @@ interface Album {
 }
 
 interface Props {
-  config: Record<string, any>;
-  onChange: (config: Record<string, any>) => void;
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
 }
 
 export default function PhotosConfig({ config, onChange }: Props) {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [albumId, setAlbumId] = useState<string>(config.album_id ?? "");
-  const [intervalSeconds, setIntervalSeconds] = useState<number>(config.interval_seconds ?? 30);
-  const [transition, setTransition] = useState<string>(config.transition ?? "fade");
-
-  useEffect(() => {
-    setAlbumId(config.album_id ?? "");
-    setIntervalSeconds(config.interval_seconds ?? 30);
-    setTransition(config.transition ?? "fade");
-  }, [config]);
+  const [albumId, setAlbumId] = useState<string>((config.album_id as string | undefined) ?? "");
+  const [intervalSeconds, setIntervalSeconds] = useState<number>((config.interval_seconds as number | undefined) ?? 30);
+  const [transition, setTransition] = useState<string>((config.transition as string | undefined) ?? "fade");
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- synchronous loading state before async fetch is standard React pattern
     api
       .getGooglePhotoAlbums()
       .then((data) => {

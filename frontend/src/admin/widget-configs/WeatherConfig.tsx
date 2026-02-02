@@ -1,18 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface Props {
-  config: Record<string, any>;
-  onChange: (config: Record<string, any>) => void;
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
 }
 
 export default function WeatherConfig({ config, onChange }: Props) {
-  const [zipCode, setZipCode] = useState<string>(config.zip_code ?? "");
-  const [units, setUnits] = useState<string>(config.units ?? "imperial");
-
-  useEffect(() => {
-    setZipCode(config.zip_code ?? "");
-    setUnits(config.units ?? "imperial");
-  }, [config]);
+  const [zipCode, setZipCode] = useState<string>((config.zip_code as string | undefined) ?? "");
+  const [units, setUnits] = useState<string>((config.units as string | undefined) ?? "imperial");
 
   function handleZipChange(value: string) {
     setZipCode(value);

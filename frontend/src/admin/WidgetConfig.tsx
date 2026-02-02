@@ -57,15 +57,15 @@ export default function WidgetConfig({ widget, onClose, onSaved }: Props) {
   function renderConfigForm() {
     switch (widget.widget_type) {
       case "clock":
-        return <ClockConfig config={config} onChange={handleChange} />;
+        return <ClockConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
       case "notes":
-        return <NotesConfig config={config} onChange={handleChange} />;
+        return <NotesConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
       case "weather":
-        return <WeatherConfig config={config} onChange={handleChange} />;
+        return <WeatherConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
       case "calendar":
-        return <CalendarConfig config={config} onChange={handleChange} />;
+        return <CalendarConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
       case "photos":
-        return <PhotosConfig config={config} onChange={handleChange} />;
+        return <PhotosConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
       default:
         return (
           <p className="text-sm text-gray-500">
