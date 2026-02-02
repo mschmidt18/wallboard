@@ -30,12 +30,13 @@ PYTHONPATH=. .venv/bin/uvicorn server.app.main:app --reload --host 0.0.0.0 --por
 .venv/bin/pip install -r server/requirements.txt
 ```
 
-### Frontend (planned - `frontend/` directory)
+### Frontend (`frontend/` directory)
 
 ```bash
 cd frontend && npm install
 cd frontend && npm run dev          # Dev server with /api proxy to :8000
 cd frontend && npm run build        # Production build to frontend/dist/
+cd frontend && npm run lint         # Lint with ESLint
 ```
 
 ## Architecture
@@ -44,7 +45,15 @@ cd frontend && npm run build        # Production build to frontend/dist/
 
 **Entrypoint:** `main.py` - FastAPI app with lifespan that initializes the DB and starts the background refresh loop via `asyncio.create_task`.
 
-**Database:** SQLAlchemy ORM with module-level globals in `database.py`. `init_db()` sets `_engine` and `_session_factory`; `get_db()` is a FastAPI dependency that yields sessions. Tests override this via `app.dependency_overrides[database.get_db]`.
+**Config:** `config.py` - dataclass with paths (`db_path`, `secret_key_path`, `log_path`) and settings (`log_level`, `display_refresh_interval`). `Config.default()` uses `~/.wallboard/` as the base directory.
+
+**Database:** SQLAlchemy ORM with module-level globals in `database.py`. `init_db()` creates the engine; `get_session_factory()` returns the session factory; `get_db()` is a FastAPI dependency that yields sessions. Tests override this via `app.dependency_overrides[database.get_db]`.
+
+**Schemas:** `schemas.py` - Pydantic models for API request/response validation.
+
+**Auth:** `auth.py` - authentication helper functions.
+
+**Logging:** `logging.py` - structured JSON logging setup with structlog.
 
 **Models** (`models.py`): `Layout` (has many widgets, only one active at a time), `Widget` (positioned on a grid, typed as calendar/photos/weather/clock/notes), `Integration` (stores encrypted OAuth tokens), `Cache` (keyed by source string like `weather_40.7_-74.0` or `google_calendar`).
 
@@ -62,6 +71,10 @@ cd frontend && npm run build        # Production build to frontend/dist/
 - `google_auth.py`, `google_calendar.py`, `google_photos.py` - Google API integrations
 - `encryption.py` - Fernet encrypt/decrypt for credential storage
 
+**Middleware:** Request logging middleware in `main.py` logs method, path, status, and duration for all requests except `/api/display` and `/api/health`. Health check at `GET /api/health`.
+
+**SPA serving:** When `frontend/dist/` exists, FastAPI mounts `/assets` as static files and serves `index.html` as the SPA fallback for all other routes.
+
 **Auth model:** `settings.py` router has module-level `_config` and `_sessions` dict. Tests call `settings_router.set_config(config)` and clear `_sessions` between tests. The `require_auth` function checks cookie against in-memory session store.
 
 ### Test patterns
@@ -72,6 +85,20 @@ cd frontend && npm run build        # Production build to frontend/dist/
 - `tmp_config` fixture: sets up settings router config for auth tests
 - Async service tests use `pytest.mark.asyncio` with `unittest.mock.AsyncMock` and `patch`
 
-### Frontend (planned)
+### Frontend (`frontend/`)
 
-React 18 + TypeScript + Vite + Tailwind CSS. Two routes: `/` (full-screen dashboard display) and `/admin/*` (configuration UI). The dashboard polls `/api/display` and renders widgets in a CSS grid. Admin uses `react-grid-layout` for drag-and-drop layout editing. Vite proxies `/api` to the backend in dev mode. In production, FastAPI serves the built frontend from `frontend/dist/`.
+React 19 + TypeScript + Vite 7 + Tailwind CSS 4. Two routes: `/` (full-screen dashboard display) and `/admin/*` (configuration UI). The dashboard polls `/api/display` and renders widgets in a CSS grid. Admin uses `react-grid-layout` for drag-and-drop layout editing. Vite proxies `/api` to the backend in dev mode. In production, FastAPI serves the built frontend from `frontend/dist/`.
+
+**Widget components** (`dashboard/widgets/`): `WeatherWidget`, `CalendarWidget`, `PhotosWidget`, `ClockWidget`, `NotesWidget`
+
+**Admin pages** (`admin/`): `AdminShell` (layout wrapper), `Layouts` (CRUD), `LayoutEditor` (drag-and-drop), `WidgetConfig` + per-type configs, `Integrations` (OAuth), `Settings`, `ThemeEditor`, `Login`
+
+**Shared** (`shared/`): `api.ts` (API client), `types.ts` (TypeScript type definitions)
+
+### Deployment
+
+- `install.sh` - Raspberry Pi installer (clones repo, sets up venv, builds frontend, configures systemd services, generates encryption key)
+- `bin/wallboard` - CLI tool (`start`, `stop`, `restart`, `update`, `status`, `logs`)
+- `system/wallboard-server.service` - systemd unit for FastAPI backend (uvicorn on port 8000)
+- `system/wallboard-display.service` - systemd unit for Chromium kiosk display
+- `server/alembic/` - database migrations (config in `server/alembic.ini`)
