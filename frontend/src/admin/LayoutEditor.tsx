@@ -6,6 +6,7 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { api } from "../shared/api";
 import type { Layout, Widget, WidgetType } from "../shared/types";
+import WidgetConfig from "./WidgetConfig";
 
 const WIDGET_TYPES: { type: WidgetType; label: string; icon: string }[] = [
   { type: "clock", label: "Clock", icon: "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" },
@@ -436,6 +437,19 @@ export default function LayoutEditor() {
           </GridLayout>
         )}
       </div>
+
+      {/* Widget config panel */}
+      {selectedWidgetId !== null && (() => {
+        const selectedWidget = layout.widgets.find((w) => w.id === selectedWidgetId);
+        if (!selectedWidget) return null;
+        return (
+          <WidgetConfig
+            widget={selectedWidget}
+            onClose={() => setSelectedWidgetId(null)}
+            onSaved={() => fetchLayout()}
+          />
+        );
+      })()}
 
       {/* Close add menu on outside click */}
       {showAddMenu && (

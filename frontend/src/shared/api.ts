@@ -77,4 +77,8 @@ export const api = {
     }),
   disconnectGoogle: () =>
     request<void>("/integrations/google", { method: "DELETE" }),
+  getGoogleCalendars: () =>
+    request<{ id: string; name: string; color: string }[]>("/google/calendars"),
+  getGooglePhotoAlbums: () =>
+    request<{ id: string; title: string; count: number }[]>("/google/photos/albums"),
 };
