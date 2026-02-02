@@ -22,6 +22,17 @@ export interface Layout {
   widgets: Widget[];
 }
 
+export interface Integration {
+  id: number;
+  provider: string;
+  status: string;
+  created_at: string;
+}
+
+export interface GoogleConnectResponse {
+  auth_url: string;
+}
+
 export interface DisplayResponse {
   layout: {
     id: number;

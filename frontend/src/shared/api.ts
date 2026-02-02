@@ -1,4 +1,4 @@
-import type { DisplayResponse, Layout, Widget } from "./types";
+import type { DisplayResponse, GoogleConnectResponse, Integration, Layout, Widget } from "./types";
 
 const BASE = "/api";
 
@@ -57,4 +57,11 @@ export const api = {
   getSettings: () => request<any>("/settings"),
   logout: () =>
     request<any>("/auth/logout", { method: "POST" }),
+  getIntegrations: () => request<Integration[]>("/integrations"),
+  connectGoogle: () =>
+    request<GoogleConnectResponse>("/integrations/google/connect", {
+      method: "POST",
+    }),
+  disconnectGoogle: () =>
+    request<void>("/integrations/google", { method: "DELETE" }),
 };
