@@ -11,3 +11,21 @@ Issue #2 - Clock config key mismatch: `use_24h` vs `format_24h` - DONE
   - Updated handleChange type and body to use `format_24h`
   - Added backend contract test `test_clock_widget_config_uses_format_24h`
   - All 68 backend tests pass
+
+Issue #3 - No Google OAuth token refresh - DONE (commit f2ce13c)
+  - Added `get_valid_access_token()` in `google_auth.py` that checks `expires_at` and refreshes via `refresh_access_token()` when expired
+  - Saves refreshed tokens (access_token, expires_at, preserves refresh_token) back to the Integration DB row
+  - Returns None with warning log when no refresh_token is available
+  - Updated `_get_google_access_token` in `refresh.py` to use `get_valid_access_token` (now async)
+  - Updated `_get_access_token` in `google_data.py` to use `get_valid_access_token` (now async)
+  - Updated `google_callback` in `integrations.py` to store `expires_at` during initial OAuth code exchange
+  - Added 5 new tests in `test_token_refresh.py`: valid token, expired token refresh, no refresh token, no integration, missing expires_at
+  - Updated `test_google_data.py` to mock `_get_access_token` directly instead of `load_or_create_key`
+  - All 73 backend tests pass
+
+Issue #4 - Calendar widget deduplication silently drops differing configs - DONE
+  - Changed cache key from static `google_calendar` to parameterized `google_calendar_{sorted_ids}_{days_ahead}`
+  - Updated `_collect_data_sources` in `refresh.py` to generate unique keys per calendar config
+  - Updated `_get_cache_key` in `display.py` to match the new key format
+  - Added test `test_collect_data_sources_calendar_different_configs` verifying two calendar widgets with different configs produce separate data source entries
+  - All 74 backend tests pass

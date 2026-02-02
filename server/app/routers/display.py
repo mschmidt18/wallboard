@@ -18,7 +18,9 @@ def _get_cache_key(widget) -> str | None:
         if lat is not None and lon is not None:
             return f"weather_{lat}_{lon}"
     elif wtype == "calendar":
-        return "google_calendar"
+        calendar_ids = sorted(config.get("calendar_ids", ["primary"]))
+        days_ahead = config.get("days_ahead", 7)
+        return f"google_calendar_{'_'.join(calendar_ids)}_{days_ahead}"
     elif wtype == "photos":
         album_id = config.get("album_id")
         if album_id:

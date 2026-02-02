@@ -30,7 +30,9 @@ def _collect_data_sources(session: Session) -> list[dict]:
                         "params": {"lat": lat, "lon": lon, "units": config.get("units", "metric")},
                         "interval": DEFAULT_INTERVALS["weather"]}
         elif widget.widget_type == "calendar":
-            key = "google_calendar"
+            calendar_ids = sorted(config.get("calendar_ids", ["primary"]))
+            days_ahead = config.get("days_ahead", 7)
+            key = f"google_calendar_{'_'.join(calendar_ids)}_{days_ahead}"
             if key not in sources:
                 sources[key] = {"type": "calendar", "key": key, "params": config,
                     "interval": DEFAULT_INTERVALS["google_calendar"]}
