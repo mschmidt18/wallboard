@@ -55,6 +55,19 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
   getSettings: () => request<any>("/settings"),
+  updateSettings: (data: Record<string, unknown>) =>
+    request<any>("/settings", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<any>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    }),
   logout: () =>
     request<any>("/auth/logout", { method: "POST" }),
   getIntegrations: () => request<Integration[]>("/integrations"),

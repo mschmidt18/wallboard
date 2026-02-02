@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./dashboard/Dashboard";
 import AdminShell from "./admin/AdminShell";
 import Integrations from "./admin/Integrations";
+import Settings from "./admin/Settings";
 
 function App() {
   return (
@@ -12,7 +13,7 @@ function App() {
           <Route index element={<AdminIndex />} />
           <Route path="layouts" element={<PlaceholderPage title="Layouts" />} />
           <Route path="integrations" element={<Integrations />} />
-          <Route path="settings" element={<PlaceholderPage title="Settings" />} />
+          <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
       </Routes>
