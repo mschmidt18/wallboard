@@ -50,3 +50,4 @@ def test_display_merges_cached_data(client, db_session):
     assert response.status_code == 200
     weather_widget = response.json()["widgets"][0]
     assert weather_widget["widget_type"] == "weather"
+    assert weather_widget["data"] == {"temp": 72, "condition": "sunny"}
