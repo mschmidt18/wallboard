@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+#
+# wallboard - CLI for managing the Wallboard digital dashboard
+#
+# Manages the wallboard-server (FastAPI backend) and wallboard-display
+# (Chromium kiosk) systemd services on a Raspberry Pi.
+#
+
+set -euo pipefail
+
+INSTALL_DIR="/opt/wallboard"
+LOG_FILE="/var/log/wallboard/wallboard.log"
+SERVER_SERVICE="wallboard-server.service"
+DISPLAY_SERVICE="wallboard-display.service"
+WALLBOARD_USER="wallboard"
+SERVER_PORT=8000
+
+usage() {
+    cat <<EOF
+Usage: wallboard <command> [options]
+
+Commands:
+  start       Start the wallboard server and display services
+  stop        Stop the wallboard server and display services
+  restart     Restart the wallboard server and display services
+  update      Pull latest code, rebuild frontend, and restart services
+  status      Show service status, device IP, and app URL
+  logs        Show recent server logs
+  logs -f, logs --follow
+              Follow server logs in real time
+
+EOF
+}
+
+require_root() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "Error: This command must be run as root (use sudo)." >&2
+        exit 1
+    fi
+}
+
+get_device_ip() {
+    hostname -I 2>/dev/null | awk '{print $1}'
+}
+
+cmd_start() {
+    require_root
+    echo "Starting wallboard services..."
+    systemctl start "$SERVER_SERVICE"
+    systemctl start "$DISPLAY_SERVICE"
+    echo "Wallboard services started."
+}
+
+cmd_stop() {
+    require_root
+    echo "Stopping wallboard services..."
+    systemctl stop "$DISPLAY_SERVICE"
+    systemctl stop "$SERVER_SERVICE"
+    echo "Wallboard services stopped."
+}
+
+cmd_restart() {
+    require_root
+    echo "Restarting wallboard services..."
+    systemctl restart "$SERVER_SERVICE"
+    systemctl restart "$DISPLAY_SERVICE"
+    echo "Wallboard services restarted."
+}
+
+cmd_update() {
+    require_root
+    echo "Updating wallboard..."
+
+    echo "Pulling latest code..."
+    cd "$INSTALL_DIR"
+    sudo -u "$WALLBOARD_USER" git pull
+
+    echo "Installing Python dependencies..."
+    sudo -u "$WALLBOARD_USER" "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/server/requirements.txt" --quiet
+
+    echo "Rebuilding frontend..."
+    cd "$INSTALL_DIR/frontend"
+    sudo -u "$WALLBOARD_USER" npm install --production
+    sudo -u "$WALLBOARD_USER" npm run build
+
+    echo "Restarting services..."
+    systemctl restart "$SERVER_SERVICE"
+    systemctl restart "$DISPLAY_SERVICE"
+
+    echo "Update complete."
+}
+
+cmd_status() {
+    local ip
+    ip="$(get_device_ip)"
+
+    echo "=== Wallboard Status ==="
+    echo ""
+
+    echo "Server service:"
+    systemctl is-active "$SERVER_SERVICE" 2>/dev/null && true
+    echo ""
+
+    echo "Display service:"
+    systemctl is-active "$DISPLAY_SERVICE" 2>/dev/null && true
+    echo ""
+
+    if [[ -n "$ip" ]]; then
+        echo "Device IP:  $ip"
+        echo "App URL:    http://${ip}:${SERVER_PORT}"
+    else
+        echo "Device IP:  (unable to determine)"
+        echo "App URL:    http://localhost:${SERVER_PORT}"
+    fi
+}
+
+cmd_logs() {
+    local follow=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -f|--follow)
+                follow=true
+                shift
+                ;;
+            *)
+                echo "Unknown option for logs: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+
+    if [[ ! -f "$LOG_FILE" ]]; then
+        echo "Log file not found: $LOG_FILE" >&2
+        exit 1
+    fi
+
+    if [[ "$follow" == true ]]; then
+        tail -f "$LOG_FILE"
+    else
+        tail -100 "$LOG_FILE"
+    fi
+}
+
+# --- Main ---
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
+fi
+
+command="$1"
+shift
+
+case "$command" in
+    start)    cmd_start ;;
+    stop)     cmd_stop ;;
+    restart)  cmd_restart ;;
+    update)   cmd_update ;;
+    status)   cmd_status ;;
+    logs)     cmd_logs "$@" ;;
+    help|-h|--help)
+              usage ;;
+    *)
+        echo "Unknown command: $command" >&2
+        echo ""
+        usage
+        exit 1
+        ;;
+esac
