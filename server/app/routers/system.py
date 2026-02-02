@@ -6,7 +6,7 @@ from fastapi import APIRouter, Cookie
 
 from server.app.config import Config
 from server.app.routers.settings import require_auth
-from server.app.schemas import UpdateCheckResponse, VersionResponse
+from server.app.schemas import UpdateCheckResponse, UpdateResponse, VersionResponse
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -80,4 +80,50 @@ def check_update(session: Optional[str] = Cookie(None)):
         up_to_date=commits_behind == 0,
         commits_behind=commits_behind,
         commits=commits,
+    )
+
+
+@router.post("/update", response_model=UpdateResponse)
+def run_update(session: Optional[str] = Cookie(None)):
+    require_auth(session)
+
+    steps = [
+        ("git pull", ["git", "pull"]),
+        ("pip install", [".venv/bin/pip", "install", "-r", "server/requirements.txt"]),
+        ("alembic upgrade", [".venv/bin/alembic", "-c", "server/alembic.ini", "upgrade", "head"]),
+        ("npm ci && build", ["npm", "ci", "--prefix", "frontend"]),
+        ("restart service", ["systemctl", "restart", "wallboard-server"]),
+    ]
+
+    steps_completed: list[str] = []
+
+    for step_name, cmd in steps:
+        try:
+            subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=PROJECT_ROOT,
+                timeout=120,
+            )
+            steps_completed.append(step_name)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+            return UpdateResponse(
+                status="error",
+                steps_completed=steps_completed,
+                step_failed=step_name,
+                fallback_instructions=(
+                    "SSH into the server and run manually:\n"
+                    "  cd /opt/wallboard\n"
+                    "  git pull\n"
+                    "  .venv/bin/pip install -r server/requirements.txt\n"
+                    "  .venv/bin/alembic -c server/alembic.ini upgrade head\n"
+                    "  cd frontend && npm ci && npm run build\n"
+                    "  sudo systemctl restart wallboard-server"
+                ),
+            )
+
+    return UpdateResponse(
+        status="ok",
+        steps_completed=steps_completed,
     )

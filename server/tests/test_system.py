@@ -133,3 +133,84 @@ def test_check_update_requires_auth(client, tmp_config):
     """POST /api/system/check-update returns 401 without auth."""
     resp = client.post("/api/system/check-update")
     assert resp.status_code == 401
+
+
+# --- Update endpoint tests ---
+
+
+def test_update_success(authed_client):
+    """POST /api/system/update returns ok status when all steps succeed."""
+    def mock_run(cmd, **kwargs):
+        result = MagicMock()
+        result.returncode = 0
+        result.stdout = ""
+        return result
+
+    with patch("subprocess.run", side_effect=mock_run):
+        resp = authed_client.post("/api/system/update")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert "git pull" in data["steps_completed"]
+    assert "pip install" in data["steps_completed"]
+    assert "alembic upgrade" in data["steps_completed"]
+    assert "npm ci && build" in data["steps_completed"]
+    assert "restart service" in data["steps_completed"]
+    assert data["step_failed"] is None
+    assert data["fallback_instructions"] is None
+
+
+def test_update_restart_failure(authed_client):
+    """POST /api/system/update returns error when systemctl restart fails."""
+    def mock_run(cmd, **kwargs):
+        result = MagicMock()
+        cmd_tuple = tuple(cmd)
+        if cmd_tuple[0] == "systemctl":
+            raise subprocess.CalledProcessError(1, cmd)
+        result.returncode = 0
+        result.stdout = ""
+        return result
+
+    with patch("subprocess.run", side_effect=mock_run):
+        resp = authed_client.post("/api/system/update")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "error"
+    assert data["step_failed"] == "restart service"
+    assert data["fallback_instructions"] is not None
+    assert len(data["fallback_instructions"]) > 0
+    # Earlier steps should have completed
+    assert "git pull" in data["steps_completed"]
+    assert "pip install" in data["steps_completed"]
+    assert "alembic upgrade" in data["steps_completed"]
+    assert "npm ci && build" in data["steps_completed"]
+
+
+def test_update_git_pull_failure(authed_client):
+    """POST /api/system/update returns error when git pull fails."""
+    def mock_run(cmd, **kwargs):
+        cmd_tuple = tuple(cmd)
+        if cmd_tuple[:2] == ("git", "pull"):
+            raise subprocess.CalledProcessError(1, cmd)
+        result = MagicMock()
+        result.returncode = 0
+        result.stdout = ""
+        return result
+
+    with patch("subprocess.run", side_effect=mock_run):
+        resp = authed_client.post("/api/system/update")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "error"
+    assert data["step_failed"] == "git pull"
+    assert data["steps_completed"] == []
+    assert data["fallback_instructions"] is not None
+
+
+def test_update_requires_auth(client, tmp_config):
+    """POST /api/system/update returns 401 without auth."""
+    resp = client.post("/api/system/update")
+    assert resp.status_code == 401
