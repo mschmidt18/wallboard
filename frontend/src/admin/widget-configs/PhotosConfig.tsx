@@ -17,12 +17,12 @@ export default function PhotosConfig({ config, onChange }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [albumId, setAlbumId] = useState<string>(config.album_id ?? "");
-  const [interval, setInterval_] = useState<number>(config.interval ?? 30);
+  const [intervalSeconds, setIntervalSeconds] = useState<number>(config.interval_seconds ?? 30);
   const [transition, setTransition] = useState<string>(config.transition ?? "fade");
 
   useEffect(() => {
     setAlbumId(config.album_id ?? "");
-    setInterval_(config.interval ?? 30);
+    setIntervalSeconds(config.interval_seconds ?? 30);
     setTransition(config.transition ?? "fade");
   }, [config]);
 
@@ -50,11 +50,11 @@ export default function PhotosConfig({ config, onChange }: Props) {
     };
   }, []);
 
-  function emitChange(updates: Partial<{ album_id: string; interval: number; transition: string }>) {
+  function emitChange(updates: Partial<{ album_id: string; interval_seconds: number; transition: string }>) {
     const next = {
       ...config,
       album_id: updates.album_id ?? albumId,
-      interval: updates.interval ?? interval,
+      interval_seconds: updates.interval_seconds ?? intervalSeconds,
       transition: updates.transition ?? transition,
     };
     onChange(next);
@@ -100,7 +100,7 @@ export default function PhotosConfig({ config, onChange }: Props) {
 
       <div>
         <label htmlFor="photos-interval" className="block text-sm font-medium text-gray-700 mb-1">
-          Interval: {interval}s
+          Interval: {intervalSeconds}s
         </label>
         <input
           id="photos-interval"
@@ -108,11 +108,11 @@ export default function PhotosConfig({ config, onChange }: Props) {
           min={5}
           max={120}
           step={5}
-          value={interval}
+          value={intervalSeconds}
           onChange={(e) => {
             const v = Number(e.target.value);
-            setInterval_(v);
-            emitChange({ interval: v });
+            setIntervalSeconds(v);
+            emitChange({ interval_seconds: v });
           }}
           className="w-full accent-indigo-600"
         />

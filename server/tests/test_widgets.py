@@ -109,6 +109,25 @@ def test_update_weather_widget_resolves_zip(mock_geocode, client, layout_id):
     mock_geocode.assert_awaited_once_with("90210")
 
 
+def test_photos_widget_config_uses_interval_seconds(client, layout_id):
+    """Photos widget config must use 'interval_seconds' (not 'interval').
+
+    The dashboard PhotosWidget reads config.interval_seconds. The admin
+    PhotosConfig must emit interval_seconds so the configured slideshow
+    interval actually takes effect.
+    """
+    response = client.post(f"/api/layouts/{layout_id}/widgets", json={
+        "widget_type": "photos",
+        "config": {"album_id": "abc123", "interval_seconds": 45, "transition": "fade"},
+        "position_x": 0, "position_y": 0, "width": 6, "height": 4,
+    })
+    assert response.status_code == 201
+    config = response.json()["config"]
+    assert "interval_seconds" in config, "Config should use 'interval_seconds', not 'interval'"
+    assert config["interval_seconds"] == 45
+    assert "interval" not in config, "Config should NOT contain bare 'interval' key"
+
+
 @patch("server.app.routers.widgets.geocode_zip", new_callable=AsyncMock,
        side_effect=GeocodingError("No location found for zip code: 00000"))
 def test_add_weather_widget_invalid_zip_returns_400(mock_geocode, client, layout_id):
