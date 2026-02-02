@@ -8,3 +8,4 @@ Issue 8: DONE
 Issue 1: DONE
 Issue 2: DONE
 Issue 10: DONE (was already fixed in Issue 7; also fixed remaining lint errors in ClockConfig.tsx, CalendarWidget.tsx, WeatherConfig.tsx)
+Issue 11: DONE (updated SQLAlchemy 2.0.36→2.0.46, python-multipart 0.0.20→0.0.22, structlog 24.4.0→25.5.0, pydantic 2.10.4→2.12.5, alembic 1.14.1→1.18.3; all 126 tests pass)
