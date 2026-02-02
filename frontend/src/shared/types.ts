@@ -1,11 +1,13 @@
+import type { ThemeValues } from "../admin/ThemeEditor";
+
 export type WidgetType = "calendar" | "photos" | "weather" | "clock" | "notes";
 
 export interface Widget {
   id: number;
   layout_id: number;
   widget_type: WidgetType;
-  config: Record<string, any>;
-  data?: Record<string, any> | null;
+  config: Record<string, unknown>;
+  data?: Record<string, unknown> | null;
   position_x: number;
   position_y: number;
   width: number;
@@ -18,7 +20,7 @@ export interface Layout {
   columns: number;
   row_height: number;
   is_active: boolean;
-  theme: Record<string, any>;
+  theme: ThemeValues;
   widgets: Widget[];
 }
 
@@ -28,7 +30,7 @@ export interface LayoutListItem {
   columns: number;
   row_height: number;
   is_active: boolean;
-  theme: Record<string, any>;
+  theme: ThemeValues;
   widget_count: number;
 }
 
@@ -49,7 +51,7 @@ export interface DisplayResponse {
     name: string;
     columns: number;
     row_height: number;
-    theme: Record<string, any>;
+    theme: ThemeValues;
   };
   widgets: Widget[];
   refresh_interval: number;
