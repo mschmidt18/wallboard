@@ -3,8 +3,12 @@
 # Wallboard Installer
 # One-line install: curl -sSL https://raw.githubusercontent.com/OWNER/wallboard/main/install.sh | bash
 #
-# Installs the Wallboard digital dashboard on a Raspberry Pi running Raspberry Pi OS (Debian-based).
+# Installs the Wallboard digital dashboard on Debian-based systems (Raspberry Pi OS, Debian 12+, Ubuntu).
 # Must be run as root.
+#
+# Flags:
+#   --test           Run in test/container mode (skip git clone, systemd, logrotate)
+#   --with-display   Install Chromium and X server (included by default, excluded by --test)
 
 set -e
 
@@ -36,6 +40,26 @@ error_exit() {
 }
 
 # ---------------------------------------------------------------------------
+# Flag parsing
+# ---------------------------------------------------------------------------
+
+TEST_MODE=false
+INSTALL_DISPLAY=true
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --test)
+            TEST_MODE=true
+            INSTALL_DISPLAY=false
+            shift ;;
+        --with-display)
+            INSTALL_DISPLAY=true
+            shift ;;
+        *) warn "Unknown flag: $1"; shift ;;
+    esac
+done
+
+# ---------------------------------------------------------------------------
 # Pre-flight checks
 # ---------------------------------------------------------------------------
 
@@ -57,13 +81,20 @@ apt-get update -qq
 apt-get install -y -qq python3 python3-venv python3-pip > /dev/null
 success "Python 3 installed"
 
-# Chromium
-apt-get install -y -qq chromium-browser > /dev/null
-success "Chromium installed"
+# Chromium + X server (skip in test mode without --with-display)
+if $INSTALL_DISPLAY; then
+    if apt-get install -y -qq chromium-browser > /dev/null 2>&1; then
+        true
+    else
+        apt-get install -y -qq chromium > /dev/null
+    fi
+    success "Chromium installed"
 
-# X server and minimal window manager
-apt-get install -y -qq xorg openbox > /dev/null
-success "X server (xorg + openbox) installed"
+    apt-get install -y -qq xorg openbox > /dev/null
+    success "X server (xorg + openbox) installed"
+else
+    success "Skipping Chromium and X server (--test mode)"
+fi
 
 # Node.js -- use NodeSource if not already present
 if ! command -v node &> /dev/null; then
@@ -74,9 +105,11 @@ if ! command -v node &> /dev/null; then
 fi
 success "Node.js $(node --version) installed"
 
-# Git (needed to clone repo)
-apt-get install -y -qq git > /dev/null
-success "Git installed"
+# Git (needed to clone repo -- skip in test mode, already available)
+if ! $TEST_MODE; then
+    apt-get install -y -qq git > /dev/null
+    success "Git installed"
+fi
 
 # ---------------------------------------------------------------------------
 # Step 2: Create wallboard user and directory structure
@@ -92,8 +125,13 @@ else
 fi
 
 # Add video and input groups for X server and Chromium kiosk access
-usermod -aG video,input "$SERVICE_USER"
-success "Added $SERVICE_USER to video and input groups"
+if $INSTALL_DISPLAY; then
+    # Ensure groups exist (present on real hardware via udev, may be missing in containers)
+    getent group video > /dev/null || groupadd --system video
+    getent group input > /dev/null || groupadd --system input
+    usermod -aG video,input "$SERVICE_USER"
+    success "Added $SERVICE_USER to video and input groups"
+fi
 
 WALLBOARD_DATA="/home/$SERVICE_USER/.wallboard"
 mkdir -p "$WALLBOARD_DATA"
@@ -111,7 +149,11 @@ success "Directories created: $INSTALL_DIR, $CONFIG_DIR, $LOG_DIR"
 
 info "Step 3/9: Cloning repository and setting up Python environment..."
 
-if [ -d "$INSTALL_DIR/.git" ]; then
+if $TEST_MODE; then
+    # In test mode, copy source from build context instead of cloning
+    cp -r /tmp/wallboard-source/* "$INSTALL_DIR/"
+    success "Source copied to $INSTALL_DIR (test mode)"
+elif [ -d "$INSTALL_DIR/.git" ]; then
     cd "$INSTALL_DIR"
     git fetch --quiet
     git reset -q --hard origin/main
@@ -182,8 +224,11 @@ done
 
 cp "$INSTALL_DIR/system/wallboard-server.service" /etc/systemd/system/
 cp "$INSTALL_DIR/system/wallboard-display.service" /etc/systemd/system/
-systemctl daemon-reload
-success "Systemd services installed and daemon reloaded"
+
+if ! $TEST_MODE; then
+    systemctl daemon-reload
+fi
+success "Systemd services installed"
 
 # ---------------------------------------------------------------------------
 # Step 7: Install wallboard CLI
@@ -201,7 +246,8 @@ success "CLI installed to /usr/local/bin/wallboard"
 
 info "Step 8/9: Configuring log rotation..."
 
-cat > /etc/logrotate.d/wallboard << 'LOGROTATE'
+if ! $TEST_MODE; then
+    cat > /etc/logrotate.d/wallboard << 'LOGROTATE'
 /var/log/wallboard/wallboard.log {
     daily
     rotate 7
@@ -212,8 +258,10 @@ cat > /etc/logrotate.d/wallboard << 'LOGROTATE'
     copytruncate
 }
 LOGROTATE
-
-success "Logrotate configured (7-day retention)"
+    success "Logrotate configured (7-day retention)"
+else
+    success "Skipping logrotate (test mode)"
+fi
 
 # ---------------------------------------------------------------------------
 # Step 9: Start services
@@ -221,10 +269,14 @@ success "Logrotate configured (7-day retention)"
 
 info "Step 9/9: Starting services..."
 
-systemctl enable wallboard-server.service wallboard-display.service
-systemctl start wallboard-server.service
-systemctl start wallboard-display.service
-success "Services enabled and started"
+if ! $TEST_MODE; then
+    systemctl enable wallboard-server.service wallboard-display.service
+    systemctl start wallboard-server.service
+    systemctl start wallboard-display.service
+    success "Services enabled and started"
+else
+    success "Skipping service start (test mode)"
+fi
 
 # ---------------------------------------------------------------------------
 # Done

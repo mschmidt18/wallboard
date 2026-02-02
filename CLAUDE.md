@@ -39,6 +39,13 @@ cd frontend && npm run build        # Production build to frontend/dist/
 cd frontend && npm run lint         # Lint with ESLint
 ```
 
+### Install Testing (Docker)
+
+```bash
+./test-docker.sh                  # Test install.sh in Docker (no display packages)
+./test-docker.sh --with-display   # Test including Chromium/X server install
+```
+
 ## Architecture
 
 ### Backend (`server/app/`)
@@ -97,7 +104,7 @@ React 19 + TypeScript + Vite 7 + Tailwind CSS 4. Two routes: `/` (full-screen da
 
 ### Deployment
 
-- `install.sh` - Raspberry Pi installer (clones repo, sets up venv, builds frontend, configures systemd services, generates encryption key)
+- `install.sh` - Production installer for Debian-based systems (clones repo, sets up venv, builds frontend, configures systemd services, generates encryption key)
 - `bin/wallboard` - CLI tool (`start`, `stop`, `restart`, `update`, `status`, `logs`)
 - `system/wallboard-server.service` - systemd unit for FastAPI backend (uvicorn on port 8000)
 - `system/wallboard-display.service` - systemd unit for Chromium kiosk display

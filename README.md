@@ -50,9 +50,9 @@ PYTHONPATH=. .venv/bin/pytest server/tests/ -v
 cd frontend && npm run lint
 ```
 
-## Raspberry Pi Installation
+## Installation
 
-The install script sets up everything on a fresh Raspberry Pi OS installation:
+The install script sets up everything on a Debian-based system (Raspberry Pi OS, Debian 12+, Ubuntu):
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/OWNER/wallboard/main/install.sh | sudo bash
@@ -76,9 +76,20 @@ Admin UI:  http://<device-ip>:8000/admin
 Dashboard: http://<device-ip>:8000
 ```
 
+### Testing the Installer
+
+The installer can be tested end-to-end in Docker without affecting your host system:
+
+```bash
+./test-docker.sh                  # Basic test (no display packages)
+./test-docker.sh --with-display   # Includes Chromium and X server install
+```
+
+This builds a Debian 12 container, runs `install.sh --test`, then verifies the full installation (user, directories, venv, database, frontend build, encryption key, health check). On failure the container is preserved for debugging.
+
 ## CLI
 
-The `wallboard` CLI manages services on a Raspberry Pi installation:
+The `wallboard` CLI manages services on a production installation:
 
 ```bash
 wallboard start       # Start server and display services
@@ -101,7 +112,7 @@ Wallboard stores its data in `~/.wallboard/`:
 
 ### Encryption Key
 
-On Raspberry Pi installations, the encryption key for OAuth tokens is stored at `/etc/wallboard/secret.key`. The install script generates this automatically.
+On production installations, the encryption key for OAuth tokens is stored at `/etc/wallboard/secret.key`. The install script generates this automatically.
 
 ### Google Integrations
 
@@ -168,9 +179,13 @@ wallboard/
 │   │   └── shared/            # API client, types
 │   ├── package.json
 │   └── vite.config.ts
+├── tests/
+│   └── test_install.sh        # Post-install verification assertions
 ├── system/                    # Systemd service files
 ├── bin/wallboard              # CLI tool
-├── install.sh                 # Raspberry Pi installer
+├── install.sh                 # Production installer (Debian-based systems)
+├── Dockerfile.test            # Docker image for install testing
+├── test-docker.sh             # Orchestration script for Docker install tests
 └── CLAUDE.md                  # Development reference
 ```
 

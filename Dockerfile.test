@@ -1,0 +1,15 @@
+FROM debian:12-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl sudo && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp/wallboard-source
+COPY . .
+RUN chmod +x install.sh tests/test_install.sh
+
+ARG INSTALL_FLAGS="--test"
+RUN ./install.sh ${INSTALL_FLAGS}
+
+ENTRYPOINT ["/tmp/wallboard-source/tests/test_install.sh"]
