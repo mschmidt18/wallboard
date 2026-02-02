@@ -22,6 +22,16 @@ export interface Layout {
   widgets: Widget[];
 }
 
+export interface LayoutListItem {
+  id: number;
+  name: string;
+  columns: number;
+  row_height: number;
+  is_active: boolean;
+  theme: Record<string, any>;
+  widget_count: number;
+}
+
 export interface Integration {
   id: number;
   provider: string;

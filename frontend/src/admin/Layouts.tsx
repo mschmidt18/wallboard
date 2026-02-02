@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../shared/api";
-import type { Layout } from "../shared/types";
+import type { LayoutListItem } from "../shared/types";
 
 export default function Layouts() {
-  const [layouts, setLayouts] = useState<Layout[]>([]);
+  const [layouts, setLayouts] = useState<LayoutListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -217,11 +217,8 @@ export default function Layouts() {
                 </h3>
                 <p className="mt-1 text-sm text-gray-500">
                   {layout.columns} columns &middot;{" "}
-                  {(layout as any).widget_count ?? layout.widgets?.length ?? 0}{" "}
-                  widget
-                  {((layout as any).widget_count ?? layout.widgets?.length ?? 0) !== 1
-                    ? "s"
-                    : ""}
+                  {layout.widget_count} widget
+                  {layout.widget_count !== 1 ? "s" : ""}
                 </p>
               </Link>
 

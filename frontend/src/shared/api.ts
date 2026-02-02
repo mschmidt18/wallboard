@@ -1,4 +1,4 @@
-import type { DisplayResponse, GoogleConnectResponse, Integration, Layout, Widget } from "./types";
+import type { DisplayResponse, GoogleConnectResponse, Integration, Layout, LayoutListItem, Widget } from "./types";
 
 const BASE = "/api";
 
@@ -27,7 +27,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   getDisplay: () => request<DisplayResponse>("/display"),
-  getLayouts: () => request<Layout[]>("/layouts"),
+  getLayouts: () => request<LayoutListItem[]>("/layouts"),
   getLayout: (id: number) => request<Layout>(`/layouts/${id}`),
   createLayout: (data: any) =>
     request<Layout>("/layouts", {
