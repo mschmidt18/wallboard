@@ -78,6 +78,10 @@ cmd_update() {
     echo "Installing Python dependencies..."
     sudo -u "$WALLBOARD_USER" "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/server/requirements.txt" --quiet
 
+    echo "Running database migrations..."
+    cd "$INSTALL_DIR/server"
+    sudo -u "$WALLBOARD_USER" "$INSTALL_DIR/.venv/bin/alembic" upgrade head
+
     echo "Rebuilding frontend..."
     cd "$INSTALL_DIR/frontend"
     sudo -u "$WALLBOARD_USER" npm ci

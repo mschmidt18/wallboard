@@ -130,6 +130,13 @@ python3 -m venv "$INSTALL_DIR/.venv"
 "$INSTALL_DIR/.venv/bin/pip" install --quiet -r "$INSTALL_DIR/server/requirements.txt"
 success "Python venv created and dependencies installed"
 
+# Run Alembic migrations to initialize migration tracking and apply any pending migrations
+cd "$INSTALL_DIR/server"
+WALLBOARD_DB_PATH="/home/$SERVICE_USER/.wallboard/wallboard.db" \
+    sudo -u "$SERVICE_USER" "$INSTALL_DIR/.venv/bin/alembic" upgrade head
+cd "$INSTALL_DIR"
+success "Database migrations applied"
+
 # ---------------------------------------------------------------------------
 # Step 4: Build the React frontend
 # ---------------------------------------------------------------------------
