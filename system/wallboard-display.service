@@ -29,4 +29,4 @@ StandardError=journal
 SyslogIdentifier=wallboard-display
 
 [Install]
-WantedBy=graphical.target
+WantedBy=multi-user.target
