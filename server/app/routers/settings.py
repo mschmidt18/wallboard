@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from pathlib import Path
 from typing import Optional
@@ -48,6 +49,7 @@ def _save_settings(settings: dict) -> None:
     path = _settings_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(settings, indent=2))
+    os.chmod(path, 0o600)
 
 
 def require_auth(session: Optional[str] = Cookie(None)) -> str:

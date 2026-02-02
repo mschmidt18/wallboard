@@ -66,3 +66,15 @@ Issue #9 - No auth on admin-only routes - DONE
   - Updated existing tests in `test_layouts.py`, `test_widgets.py`, `test_display.py`, `test_e2e.py`, `test_google_data.py` to use `authed_client`
   - Added 19 new tests in `test_admin_auth.py`: 401 for unauthenticated access to all admin endpoints, success with auth for layout/widget CRUD, display endpoint remains unauthenticated
   - All 97 backend tests pass
+
+Issue #10 - Encryption key auto-creation with insecure permissions - DONE (commit 26f1a7d)
+  - Added `os.chmod(path, 0o600)` after writing the key file in `load_or_create_key`
+  - Key file now has owner-only read/write permissions instead of default umask (0644)
+  - Added test `test_load_or_create_key_sets_restrictive_permissions` verifying file mode is `S_IRUSR | S_IWUSR`
+  - All 98 backend tests pass
+
+Issue #11 - Settings file written with default permissions - DONE
+  - Added `os.chmod(path, 0o600)` after writing settings.json in `_save_settings` in `settings.py`
+  - Settings file now has owner-only read/write permissions instead of default umask (0644)
+  - Added test `test_settings_file_written_with_restricted_permissions` verifying file mode is `S_IRUSR | S_IWUSR`
+  - All 99 backend tests pass

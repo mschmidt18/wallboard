@@ -1,3 +1,6 @@
+import os
+import stat
+
 import pytest
 from server.app.auth import hash_password
 
@@ -71,3 +74,14 @@ def test_change_password_success(client, tmp_config):
     client.post("/api/auth/logout")
     response = client.post("/api/auth/login", json={"password": "new456"})
     assert response.status_code == 200
+
+
+def test_settings_file_written_with_restricted_permissions(client, tmp_config):
+    """Settings file should have 0600 permissions (owner read/write only)."""
+    client.post("/api/auth/setup", json={"password": "admin123"})
+    settings_path = tmp_config.db_path.parent / "settings.json"
+    assert settings_path.exists()
+    file_mode = stat.S_IMODE(os.stat(settings_path).st_mode)
+    assert file_mode == stat.S_IRUSR | stat.S_IWUSR, (
+        f"Expected 0600, got {oct(file_mode)}"
+    )
