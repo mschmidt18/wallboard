@@ -226,3 +226,21 @@ Issue #31 - `AdminShell` auth check conflates network errors with 401 - DONE
   - Error state displays "Unable to connect to the server" with the error message and a retry button
   - Previously, any error (including network timeouts) incorrectly showed the login form
   - Frontend builds cleanly with TypeScript; all 119 backend tests pass
+
+Issue #32 - Admin login attempts not logged - DONE (commit b55d7b5)
+  - Added `import logging` and `logger = logging.getLogger(__name__)` to `settings.py` router
+  - Added `logger.info("Admin login successful")` after successful login in `auth_login`
+  - Added `logger.warning("Admin login failed")` before raising 401 on failed login in `auth_login`
+  - Added test `test_successful_login_is_logged` verifying INFO log message on successful login
+  - Added test `test_failed_login_is_logged` verifying WARNING log message on failed login
+  - All 121 backend tests pass
+
+Issue #33 - Configuration changes not logged - DONE
+  - Added `import logging` and `logger = logging.getLogger(__name__)` to `layouts.py`, `widgets.py`, and `integrations.py` routers
+  - Added `logger.info("Layout activated: %s (id=%d)")` after layout activation in `activate_layout`
+  - Added `logger.info("Widget added: %s (id=%d) to layout %d")` after widget creation in `add_widget`
+  - Added `logger.info("Widget removed: %s (id=%d) from layout %d")` before widget deletion in `delete_widget`
+  - Added `logger.info("Integration connected: google")` after Google OAuth callback completes in `google_callback`
+  - Added `logger.info("Integration disconnected: google")` after Google integration deletion in `disconnect_google`
+  - Added 5 new tests in `test_config_change_logging.py`: activate_layout_is_logged, add_widget_is_logged, delete_widget_is_logged, google_connected_is_logged, google_disconnected_is_logged
+  - All 126 backend tests pass

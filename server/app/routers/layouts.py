@@ -1,7 +1,11 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from server.app.database import get_db
+
+logger = logging.getLogger(__name__)
 from server.app.models import Layout
 from server.app.routers.settings import require_auth
 from server.app.schemas import (
@@ -83,4 +87,5 @@ def activate_layout(layout_id: int, db: Session = Depends(get_db)):
     layout.is_active = True
     db.commit()
     db.refresh(layout)
+    logger.info("Layout activated: %s (id=%d)", layout.name, layout.id)
     return layout

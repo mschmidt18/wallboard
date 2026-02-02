@@ -1,8 +1,11 @@
 import json
+import logging
 from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -100,6 +103,7 @@ async def google_callback(code: str, request: Request, db: Session = Depends(get
         )
         db.add(integration)
     db.commit()
+    logger.info("Integration connected: google")
 
     return RedirectResponse(url="/admin/integrations?connected=true")
 
@@ -111,3 +115,4 @@ def disconnect_google(db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Google integration not found")
     db.delete(integration)
     db.commit()
+    logger.info("Integration disconnected: google")

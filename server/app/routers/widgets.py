@@ -1,6 +1,10 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from server.app.database import get_db
+
+logger = logging.getLogger(__name__)
 from server.app.models import Layout, Widget
 from server.app.routers.settings import require_auth
 from server.app.schemas import WidgetCreate, WidgetUpdate, WidgetResponse, WidgetPositionUpdate
@@ -40,6 +44,7 @@ async def add_widget(layout_id: int, body: WidgetCreate, db: Session = Depends(g
     db.add(widget)
     db.commit()
     db.refresh(widget)
+    logger.info("Widget added: %s (id=%d) to layout %d", widget.widget_type, widget.id, layout_id)
     return widget
 
 
@@ -63,6 +68,7 @@ def delete_widget(widget_id: int, db: Session = Depends(get_db)):
     widget = db.query(Widget).filter(Widget.id == widget_id).first()
     if not widget:
         raise HTTPException(status_code=404, detail="Widget not found")
+    logger.info("Widget removed: %s (id=%d) from layout %d", widget.widget_type, widget.id, widget.layout_id)
     db.delete(widget)
     db.commit()
 
