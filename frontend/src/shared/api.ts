@@ -11,7 +11,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     let message = `API error: ${response.status}`;
     try {
       const body = await response.json();
-      if (body.detail) message = body.detail;
+      if (body.detail) {
+        message = Array.isArray(body.detail)
+          ? body.detail.map((e: any) => e.msg).join("; ")
+          : body.detail;
+      }
     } catch {
       // ignore parse errors
     }

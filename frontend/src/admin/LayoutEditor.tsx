@@ -110,7 +110,7 @@ export default function LayoutEditor() {
     setError(null);
     try {
       const positions = gridLayoutRef.current.map((item) => ({
-        widget_id: Number(item.i),
+        id: Number(item.i),
         position_x: item.x,
         position_y: item.y,
         width: item.w,
