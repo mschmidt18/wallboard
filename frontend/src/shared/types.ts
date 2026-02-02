@@ -127,3 +127,25 @@ export interface UpdateResponse {
   step_failed: string | null;
   fallback_instructions: string | null;
 }
+
+// --- ICS Calendars ---
+
+export interface IcsCalendar {
+  id: number;
+  name: string;
+  url: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IcsCalendarCreate {
+  name: string;
+  url: string;
+  color?: string;
+}
+
+export interface CalendarSource {
+  type: "google" | "ics";
+  id: string | number;
+}

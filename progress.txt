@@ -9,3 +9,4 @@ Task 2.2: ICS calendar CRUD router (TDD) — DONE
 Task 2.3: ICS parsing service (TDD) — DONE
 Task 2.4: Extend refresh service for ICS sources (TDD) — DONE
 Task 2.5: Extend display router for multi-source merge (TDD) — DONE
+Task 2.6: Frontend types & API client for ICS — DONE

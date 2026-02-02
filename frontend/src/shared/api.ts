@@ -1,6 +1,8 @@
 import type {
   DisplayResponse,
   GoogleConnectResponse,
+  IcsCalendar,
+  IcsCalendarCreate,
   Integration,
   Layout,
   LayoutCreate,
@@ -128,4 +130,17 @@ export const api = {
     request<UpdateCheckResponse>("/system/check-update", { method: "POST" }),
   runUpdate: () =>
     request<UpdateResponse>("/system/update", { method: "POST" }),
+  getIcsCalendars: () => request<IcsCalendar[]>("/ics-calendars"),
+  createIcsCalendar: (data: IcsCalendarCreate) =>
+    request<IcsCalendar>("/ics-calendars", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateIcsCalendar: (id: number, data: Partial<IcsCalendarCreate>) =>
+    request<IcsCalendar>(`/ics-calendars/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  deleteIcsCalendar: (id: number) =>
+    request<void>(`/ics-calendars/${id}`, { method: "DELETE" }),
 };
