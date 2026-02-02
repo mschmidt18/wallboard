@@ -1,0 +1,20 @@
+[Unit]
+Description=Wallboard Server (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wallboard
+Group=wallboard
+WorkingDirectory=/opt/wallboard
+Environment=PYTHONPATH=/opt/wallboard
+ExecStart=/opt/wallboard/.venv/bin/uvicorn server.app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wallboard-server
+
+[Install]
+WantedBy=multi-user.target

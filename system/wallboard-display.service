@@ -1,0 +1,32 @@
+[Unit]
+Description=Wallboard Display (Kiosk Browser)
+After=wallboard-server.service
+Requires=wallboard-server.service
+
+[Service]
+Type=simple
+User=wallboard
+Group=wallboard
+Environment=DISPLAY=:0
+ExecStart=/bin/bash -c '\
+  /usr/bin/xinit /bin/bash -c "\
+    xset s off && \
+    xset -dpms && \
+    xset s noblank && \
+    openbox-session & \
+    sleep 1 && \
+    /usr/bin/chromium-browser \
+      --kiosk \
+      --noerrdialogs \
+      --disable-infobars \
+      --no-first-run \
+      http://localhost:8000 \
+  " -- :0 vt1'
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wallboard-display
+
+[Install]
+WantedBy=graphical.target
