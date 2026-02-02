@@ -22,8 +22,12 @@ def tmp_config(tmp_path: Path) -> Config:
     integrations_router.set_config(config)
     google_data_router.set_config(config)
     yield config
-    # Clear sessions between tests
+    # Reset module-level state to avoid leaking between tests
     settings_router._sessions.clear()
+    settings_router._config = None
+    display_router._config = None
+    integrations_router._config = None
+    google_data_router._config = None
 
 
 @pytest.fixture

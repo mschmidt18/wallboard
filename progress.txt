@@ -199,3 +199,9 @@ Issue #27 - Missing test coverage for key endpoints - DONE
   - Added `test_batch_positions_nonexistent_layout_returns_404` in `test_widgets.py`: verifies batch update with bad layout ID returns 404
   - Added `test_batch_positions_wrong_widget_id_returns_404` in `test_widgets.py`: verifies batch update with wrong widget ID returns 404
   - All 117 backend tests pass
+
+Issue #28 - `tmp_config` fixture doesn't reset `_config` on teardown - DONE
+  - Added `_config = None` reset for all four routers (settings, display, integrations, google_data) in `tmp_config` fixture teardown in `conftest.py`
+  - Previously only `_sessions.clear()` was called; `_config` from one test leaked to subsequent tests that don't use the fixture
+  - Added `test_fixture_teardown.py` with two tests: one that uses `tmp_config` and verifies config is set, and one that runs after and verifies `_config` is reset to None
+  - All 119 backend tests pass
