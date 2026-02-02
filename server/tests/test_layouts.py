@@ -87,3 +87,15 @@ def test_activate_already_active_layout(authed_client):
     active_layouts = [l for l in all_layouts if l["is_active"]]
     assert len(active_layouts) == 1
     assert active_layouts[0]["id"] == id1
+
+
+def test_update_nonexistent_layout_returns_404(authed_client):
+    """PUT /api/layouts/999 should return 404."""
+    response = authed_client.put("/api/layouts/999", json={"name": "Nope"})
+    assert response.status_code == 404
+
+
+def test_delete_nonexistent_layout_returns_404(authed_client):
+    """DELETE /api/layouts/999 should return 404."""
+    response = authed_client.delete("/api/layouts/999")
+    assert response.status_code == 404

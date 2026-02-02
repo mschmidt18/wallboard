@@ -179,3 +179,23 @@ Issue #25 - Encryption test silently swallows all exceptions - DONE
   - Now imports `InvalidToken` from `cryptography.fernet` and asserts the specific exception type
   - Previously the test passed no matter what happened (including if decrypt succeeded with wrong key)
   - All 108 backend tests pass
+
+Issue #26 - E2E test doesn't assert intermediate step responses - DONE (commit 0c1b0e5)
+  - Added `assert resp.status_code == 201` after layout creation
+  - Added `assert resp.status_code == 201` after each widget creation (3 widgets)
+  - Added `assert resp.status_code == 200` after layout activation
+  - Added `assert resp.status_code == 200` after batch position update
+  - Previously, if any intermediate step failed with a validation error, the test only failed at the final assertion with a confusing error
+  - All 108 backend tests pass
+
+Issue #27 - Missing test coverage for key endpoints - DONE
+  - Added `test_update_settings` in `test_settings.py`: verifies `PUT /api/settings` updates and persists values
+  - Added `test_auth_setup_called_twice_returns_400` in `test_settings.py`: verifies duplicate setup is rejected
+  - Added `test_logout_invalidates_session` in `test_settings.py`: verifies session cookie is invalidated after logout
+  - Added `test_update_nonexistent_layout_returns_404` in `test_layouts.py`: verifies `PUT /api/layouts/999` returns 404
+  - Added `test_delete_nonexistent_layout_returns_404` in `test_layouts.py`: verifies `DELETE /api/layouts/999` returns 404
+  - Added `test_update_nonexistent_widget_returns_404` in `test_widgets.py`: verifies `PUT /api/widgets/999` returns 404
+  - Added `test_delete_nonexistent_widget_returns_404` in `test_widgets.py`: verifies `DELETE /api/widgets/999` returns 404
+  - Added `test_batch_positions_nonexistent_layout_returns_404` in `test_widgets.py`: verifies batch update with bad layout ID returns 404
+  - Added `test_batch_positions_wrong_widget_id_returns_404` in `test_widgets.py`: verifies batch update with wrong widget ID returns 404
+  - All 117 backend tests pass

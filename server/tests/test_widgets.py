@@ -178,3 +178,32 @@ def test_add_weather_widget_invalid_zip_returns_400(mock_geocode, authed_client,
     })
     assert response.status_code == 400
     assert "No location found" in response.json()["detail"]
+
+
+def test_update_nonexistent_widget_returns_404(authed_client):
+    """PUT /api/widgets/999 should return 404."""
+    response = authed_client.put("/api/widgets/999", json={"config": {"content": "Hi"}})
+    assert response.status_code == 404
+
+
+def test_delete_nonexistent_widget_returns_404(authed_client):
+    """DELETE /api/widgets/999 should return 404."""
+    response = authed_client.delete("/api/widgets/999")
+    assert response.status_code == 404
+
+
+def test_batch_positions_nonexistent_layout_returns_404(authed_client):
+    """Batch position update with nonexistent layout should return 404."""
+    response = authed_client.put("/api/layouts/999/widgets/positions", json=[
+        {"id": 1, "position_x": 0, "position_y": 0, "width": 3, "height": 2},
+    ])
+    assert response.status_code == 404
+
+
+def test_batch_positions_wrong_widget_id_returns_404(authed_client, layout_id):
+    """Batch position update with widget ID not in the layout should return 404."""
+    response = authed_client.put(f"/api/layouts/{layout_id}/widgets/positions", json=[
+        {"id": 99999, "position_x": 0, "position_y": 0, "width": 3, "height": 2},
+    ])
+    assert response.status_code == 404
+    assert "99999" in response.json()["detail"]

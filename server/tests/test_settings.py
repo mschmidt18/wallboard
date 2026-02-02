@@ -85,3 +85,38 @@ def test_settings_file_written_with_restricted_permissions(client, tmp_config):
     assert file_mode == stat.S_IRUSR | stat.S_IWUSR, (
         f"Expected 0600, got {oct(file_mode)}"
     )
+
+
+def test_update_settings(authed_client, tmp_config):
+    """PUT /api/settings should update settings values."""
+    response = authed_client.put("/api/settings", json={
+        "google_client_id": "my-client-id",
+        "display_refresh_interval": 120,
+    })
+    assert response.status_code == 200
+    # Verify settings were persisted
+    get_resp = authed_client.get("/api/settings")
+    data = get_resp.json()
+    assert data["google_client_id"] == "my-client-id"
+    assert data["display_refresh_interval"] == 120
+
+
+def test_auth_setup_called_twice_returns_400(client, tmp_config):
+    """POST /api/auth/setup called twice should return 400."""
+    resp1 = client.post("/api/auth/setup", json={"password": "admin123"})
+    assert resp1.status_code == 200
+    resp2 = client.post("/api/auth/setup", json={"password": "other456"})
+    assert resp2.status_code == 400
+    assert "already set" in resp2.json()["detail"].lower()
+
+
+def test_logout_invalidates_session(client, tmp_config):
+    """After logout, the session cookie should no longer grant access."""
+    client.post("/api/auth/setup", json={"password": "admin123"})
+    client.post("/api/auth/login", json={"password": "admin123"})
+    # Verify we have access
+    assert client.get("/api/settings").status_code == 200
+    # Logout
+    client.post("/api/auth/logout")
+    # Session should be invalidated
+    assert client.get("/api/settings").status_code == 401
