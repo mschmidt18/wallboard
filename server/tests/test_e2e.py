@@ -1,25 +1,31 @@
 def test_full_workflow(authed_client):
     """Create a layout, add widgets, activate, verify display endpoint."""
     # Create layout
-    layout = authed_client.post("/api/layouts", json={"name": "E2E Test", "columns": 12, "row_height": 80}).json()
+    resp = authed_client.post("/api/layouts", json={"name": "E2E Test", "columns": 12, "row_height": 80})
+    assert resp.status_code == 201
+    layout = resp.json()
     layout_id = layout["id"]
 
     # Add widgets
-    authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
+    resp = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "clock", "config": {"timezone": "UTC"},
         "position_x": 0, "position_y": 0, "width": 4, "height": 2,
     })
-    authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
+    assert resp.status_code == 201
+    resp = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "notes", "config": {"content": "Hello Wallboard"},
         "position_x": 4, "position_y": 0, "width": 4, "height": 2,
     })
-    authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
+    assert resp.status_code == 201
+    resp = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "weather", "config": {"lat": 40.7, "lon": -74.0, "units": "imperial"},
         "position_x": 0, "position_y": 2, "width": 6, "height": 3,
     })
+    assert resp.status_code == 201
 
     # Activate layout
-    authed_client.post(f"/api/layouts/{layout_id}/activate")
+    resp = authed_client.post(f"/api/layouts/{layout_id}/activate")
+    assert resp.status_code == 200
 
     # Verify display
     display = authed_client.get("/api/display").json()
@@ -28,10 +34,11 @@ def test_full_workflow(authed_client):
 
     # Update positions (drag-and-drop)
     widgets = display["widgets"]
-    authed_client.put(f"/api/layouts/{layout_id}/widgets/positions", json=[
+    resp = authed_client.put(f"/api/layouts/{layout_id}/widgets/positions", json=[
         {"id": w["id"], "position_x": i * 4, "position_y": 0, "width": 4, "height": 2}
         for i, w in enumerate(widgets)
     ])
+    assert resp.status_code == 200
 
     # Verify updated positions
     updated = authed_client.get("/api/display").json()
