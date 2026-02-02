@@ -459,6 +459,7 @@ export default function LayoutEditor() {
         if (!selectedWidget) return null;
         return (
           <WidgetConfig
+            key={selectedWidget.id}
             widget={selectedWidget}
             onClose={() => setSelectedWidgetId(null)}
             onSaved={() => fetchLayout()}
