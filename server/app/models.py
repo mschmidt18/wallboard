@@ -52,6 +52,17 @@ class Integration(Base):
     updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
+class IcsCalendar(Base):
+    __tablename__ = "ics_calendars"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    color = Column(String, nullable=False, default="#6366f1")
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
 class Cache(Base):
     __tablename__ = "cache"
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 WidgetType = Literal["calendar", "photos", "weather", "clock", "notes"]
@@ -130,3 +130,47 @@ class UpdateResponse(BaseModel):
     steps_completed: list[str] = []
     step_failed: str | None = None
     fallback_instructions: str | None = None
+
+
+# --- ICS Calendars ---
+
+def _validate_hex_color(v: str) -> str:
+    import re
+    if not re.match(r"^#[0-9a-fA-F]{6}$", v):
+        raise ValueError("Color must be a valid hex color (e.g. #6366f1)")
+    return v
+
+
+class IcsCalendarCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    url: str = Field(min_length=1)
+    color: str = Field(default="#6366f1")
+
+    @field_validator("color")
+    @classmethod
+    def validate_color(cls, v: str) -> str:
+        return _validate_hex_color(v)
+
+
+class IcsCalendarUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    url: str | None = Field(default=None, min_length=1)
+    color: str | None = None
+
+    @field_validator("color")
+    @classmethod
+    def validate_color(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return _validate_hex_color(v)
+
+
+class IcsCalendarResponse(BaseModel):
+    id: int
+    name: str
+    url: str
+    color: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
