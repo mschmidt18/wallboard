@@ -1,11 +1,36 @@
+import json
+from pathlib import Path
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from server.app.config import Config
 from server.app.database import get_db
 from server.app.models import Layout, Cache
 from server.app.schemas import DisplayResponse, DisplayWidgetResponse
 
 router = APIRouter(tags=["display"])
+
+_config: Optional[Config] = None
+
+
+def set_config(config: Config) -> None:
+    global _config
+    _config = config
+
+
+def _get_refresh_interval() -> int:
+    if _config is None:
+        return 60
+    settings_path = _config.db_path.parent / "settings.json"
+    if settings_path.exists():
+        try:
+            settings = json.loads(settings_path.read_text())
+            return settings.get("display_refresh_interval", 60)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return 60
 
 
 def _get_cache_key(widget) -> str | None:
@@ -60,4 +85,5 @@ def get_display(db: Session = Depends(get_db)):
             "theme": layout.theme,
         },
         widgets=widgets,
+        refresh_interval=_get_refresh_interval(),
     )

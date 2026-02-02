@@ -143,6 +143,19 @@ async def refresh_once(session_factory: sessionmaker, config: Config | None = No
         except Exception as e:
             logger.error(f"Failed to refresh {source['key']}: {e}")
 
+def _get_refresh_interval(config: Config, default: int) -> int:
+    """Read display_refresh_interval from settings file, falling back to default."""
+    import json
+    settings_path = config.db_path.parent / "settings.json"
+    if settings_path.exists():
+        try:
+            settings = json.loads(settings_path.read_text())
+            return settings.get("display_refresh_interval", default)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return default
+
+
 async def start_refresh_loop(session_factory: sessionmaker, interval_seconds: int = 60, config: Config | None = None):
     if config is None:
         config = Config.default()
@@ -151,4 +164,5 @@ async def start_refresh_loop(session_factory: sessionmaker, interval_seconds: in
             await refresh_once(session_factory, config)
         except Exception as e:
             logger.error(f"Refresh loop error: {e}")
-        await asyncio.sleep(interval_seconds)
+        interval = _get_refresh_interval(config, interval_seconds)
+        await asyncio.sleep(interval)

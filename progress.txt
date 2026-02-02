@@ -78,3 +78,29 @@ Issue #11 - Settings file written with default permissions - DONE
   - Settings file now has owner-only read/write permissions instead of default umask (0644)
   - Added test `test_settings_file_written_with_restricted_permissions` verifying file mode is `S_IRUSR | S_IWUSR`
   - All 99 backend tests pass
+
+Issue #12 - Hardcoded secret key path bypasses Config - DONE (commit e126f94)
+  - `refresh.py`: Changed `_get_google_access_token` to accept a `Config` parameter; reads `secret_key_path` and settings path from Config instead of hardcoding `/etc/wallboard/secret.key` and `~/.wallboard/settings.json`
+  - Threaded `Config` through `_fetch_source`, `refresh_once`, and `start_refresh_loop`
+  - `integrations.py`: Added `set_config()` / `_key_path()` / `_settings_path()` pattern (same as `settings.py`); removed hardcoded `KEY_PATH` and `SETTINGS_PATH` module constants
+  - `google_data.py`: Added `set_config()` / `_key_path()` / `_settings_path()` pattern; removed hardcoded `KEY_PATH` and `SETTINGS_PATH` module constants
+  - Updated `main.py` lifespan to call `integrations.set_config(config)` and `google_data.set_config(config)`
+  - Updated `conftest.py` to set config on integrations and google_data routers in `tmp_config` fixture
+  - Added 3 new tests in `test_hardcoded_paths.py`: refresh uses Config paths, integrations callback uses Config key path, google_data uses Config key path
+  - All 102 backend tests pass
+
+Issue #13 - Hardcoded settings path in integrations router - DONE (resolved as part of Issue #12)
+  - Already fixed in Issue #12: `integrations.py` uses `set_config()` / `_settings_path()` pattern
+  - No additional changes needed
+
+Issue #14 - `display_refresh_interval` not wired to refresh loop or frontend - DONE
+  - Backend: Added `refresh_interval` field to `DisplayResponse` schema (default 60)
+  - Backend: Added `set_config()` / `_get_refresh_interval()` to `display.py` router; reads `display_refresh_interval` from settings.json
+  - Backend: Added `_get_refresh_interval()` to `refresh.py`; refresh loop re-reads interval from settings on each cycle instead of using fixed startup value
+  - Backend: Wired `display.set_config(config)` in `main.py` lifespan and `conftest.py` fixture
+  - Frontend: Updated `DisplayResponse` type in `types.ts` to include `refresh_interval`
+  - Frontend: Changed Dashboard.tsx from hardcoded `POLL_INTERVAL` to using `refresh_interval` from API response via recursive `setTimeout` pattern
+  - Added test `test_display_includes_default_refresh_interval` verifying default 60s interval in response
+  - Added test `test_display_includes_custom_refresh_interval` verifying configured interval is reflected
+  - Added test `test_refresh_loop_rereads_interval_from_settings` verifying loop reads from settings file
+  - Frontend builds cleanly with TypeScript; all 105 backend tests pass

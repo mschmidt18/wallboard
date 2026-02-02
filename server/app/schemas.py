@@ -106,3 +106,4 @@ class DisplayWidgetResponse(BaseModel):
 class DisplayResponse(BaseModel):
     layout: dict[str, Any]
     widgets: list[DisplayWidgetResponse]
+    refresh_interval: int = 60

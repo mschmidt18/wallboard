@@ -51,3 +51,31 @@ def test_display_merges_cached_data(authed_client, db_session):
     weather_widget = response.json()["widgets"][0]
     assert weather_widget["widget_type"] == "weather"
     assert weather_widget["data"] == {"temp": 72, "condition": "sunny"}
+
+
+def test_display_includes_default_refresh_interval(authed_client):
+    """Display response includes refresh_interval so frontend can adjust polling."""
+    resp = authed_client.post("/api/layouts", json={"name": "Interval Test"})
+    layout_id = resp.json()["id"]
+    authed_client.post(f"/api/layouts/{layout_id}/activate")
+
+    response = authed_client.get("/api/display")
+    assert response.status_code == 200
+    data = response.json()
+    assert "refresh_interval" in data
+    assert data["refresh_interval"] == 60
+
+
+def test_display_includes_custom_refresh_interval(authed_client, tmp_config):
+    """Display response reflects the configured refresh interval from settings."""
+    # Update the display_refresh_interval setting
+    authed_client.put("/api/settings", json={"display_refresh_interval": 120})
+
+    resp = authed_client.post("/api/layouts", json={"name": "Custom Interval"})
+    layout_id = resp.json()["id"]
+    authed_client.post(f"/api/layouts/{layout_id}/activate")
+
+    response = authed_client.get("/api/display")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["refresh_interval"] == 120

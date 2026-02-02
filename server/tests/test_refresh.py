@@ -1,10 +1,12 @@
+import json
 import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, patch, MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from server.app.config import Config
 from server.app.models import Base, Layout, Widget, Cache
-from server.app.services.refresh import refresh_once, _collect_data_sources
+from server.app.services.refresh import refresh_once, _collect_data_sources, start_refresh_loop
 
 
 @pytest.fixture
@@ -105,3 +107,34 @@ def test_collect_data_sources_calendar_different_configs(refresh_db):
             all_calendar_ids.add(cid)
     assert "work" in all_calendar_ids
     assert "personal" in all_calendar_ids
+
+
+@pytest.mark.asyncio
+async def test_refresh_loop_rereads_interval_from_settings(refresh_db, tmp_path):
+    """The refresh loop should re-read display_refresh_interval from settings
+    on each cycle instead of using the fixed value passed at startup."""
+    config = Config.for_testing(tmp_path)
+
+    # Write initial settings with 30-second interval
+    settings_path = config.db_path.parent / "settings.json"
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(json.dumps({"display_refresh_interval": 30}))
+
+    sleep_intervals = []
+
+    async def mock_sleep(seconds):
+        sleep_intervals.append(seconds)
+        # Stop the loop after capturing intervals
+        raise asyncio.CancelledError()
+
+    import asyncio
+    with patch("server.app.services.refresh.asyncio.sleep", side_effect=mock_sleep):
+        with patch("server.app.services.refresh.refresh_once", new_callable=AsyncMock):
+            try:
+                await start_refresh_loop(refresh_db, interval_seconds=60, config=config)
+            except asyncio.CancelledError:
+                pass
+
+    # Should have used the interval from settings (30), not the startup value (60)
+    assert len(sleep_intervals) == 1
+    assert sleep_intervals[0] == 30

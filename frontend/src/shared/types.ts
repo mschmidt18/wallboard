@@ -42,4 +42,5 @@ export interface DisplayResponse {
     theme: Record<string, any>;
   };
   widgets: Widget[];
+  refresh_interval: number;
 }

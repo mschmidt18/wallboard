@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../shared/api";
 import type { DisplayResponse, Widget } from "../shared/types";
 import ClockWidget from "./widgets/ClockWidget";
@@ -7,7 +7,7 @@ import WeatherWidget from "./widgets/WeatherWidget";
 import CalendarWidget from "./widgets/CalendarWidget";
 import PhotosWidget from "./widgets/PhotosWidget";
 
-const POLL_INTERVAL = 60_000;
+const DEFAULT_POLL_INTERVAL = 60_000;
 const LOCALSTORAGE_KEY = "wallboard_display_cache";
 
 const FONT_FAMILY_CSS: Record<string, string> = {
@@ -60,22 +60,32 @@ export default function Dashboard() {
     }
   });
   const [error, setError] = useState(false);
+  const pollIntervalMs = useRef(DEFAULT_POLL_INTERVAL);
 
   useEffect(() => {
-    const fetchDisplay = async () => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+
+    const fetchAndSchedule = async () => {
       try {
         const data = await api.getDisplay();
         setDisplay(data);
         setError(false);
+        pollIntervalMs.current = (data.refresh_interval ?? 60) * 1000;
         localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(data));
       } catch {
         setError(true);
       }
+      if (!cancelled) {
+        timeoutId = setTimeout(fetchAndSchedule, pollIntervalMs.current);
+      }
     };
 
-    fetchDisplay();
-    const interval = setInterval(fetchDisplay, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    fetchAndSchedule();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   if (!display) {

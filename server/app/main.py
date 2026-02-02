@@ -19,6 +19,7 @@ async def lifespan(app: FastAPI):
     config = Config.default()
     setup_logging(level=config.log_level)
     settings_router.set_config(config)
+    display.set_config(config)
     integrations.set_config(config)
     google_data.set_config(config)
     engine = init_db(config.db_path)

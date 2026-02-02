@@ -9,6 +9,7 @@ from server.app.models import Base
 from server.app.main import app
 from server.app import database
 from server.app.routers import settings as settings_router
+from server.app.routers import display as display_router
 from server.app.routers import integrations as integrations_router
 from server.app.routers import google_data as google_data_router
 
@@ -17,6 +18,7 @@ from server.app.routers import google_data as google_data_router
 def tmp_config(tmp_path: Path) -> Config:
     config = Config.for_testing(tmp_path)
     settings_router.set_config(config)
+    display_router.set_config(config)
     integrations_router.set_config(config)
     google_data_router.set_config(config)
     yield config
