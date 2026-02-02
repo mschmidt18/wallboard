@@ -7,6 +7,8 @@ import "react-resizable/css/styles.css";
 import { api } from "../shared/api";
 import type { Layout, Widget, WidgetType } from "../shared/types";
 import WidgetConfig from "./WidgetConfig";
+import ThemeEditor, { DEFAULT_THEME } from "./ThemeEditor";
+import type { ThemeValues } from "./ThemeEditor";
 
 const WIDGET_TYPES: { type: WidgetType; label: string; icon: string }[] = [
   { type: "clock", label: "Clock", icon: "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" },
@@ -48,6 +50,7 @@ export default function LayoutEditor() {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsForm, setSettingsForm] = useState({ name: "", columns: 12, row_height: 60 });
+  const [themeForm, setThemeForm] = useState<ThemeValues>({ ...DEFAULT_THEME });
   const [dirty, setDirty] = useState(false);
 
   // Track current grid positions so drags are captured before save
@@ -64,6 +67,13 @@ export default function LayoutEditor() {
         name: data.name,
         columns: data.columns,
         row_height: data.row_height,
+      });
+      setThemeForm({
+        background: data.theme?.background ?? DEFAULT_THEME.background,
+        text_color: data.theme?.text_color ?? DEFAULT_THEME.text_color,
+        widget_background: data.theme?.widget_background ?? DEFAULT_THEME.widget_background,
+        font_family: data.theme?.font_family ?? DEFAULT_THEME.font_family,
+        font_scale: data.theme?.font_scale ?? DEFAULT_THEME.font_scale,
       });
       gridLayoutRef.current = widgetsToGridLayout(data.widgets);
     } catch (err) {
@@ -161,6 +171,7 @@ export default function LayoutEditor() {
         name: settingsForm.name,
         columns: settingsForm.columns,
         row_height: settingsForm.row_height,
+        theme: { ...themeForm },
       });
       await fetchLayout();
     } catch (err) {
@@ -352,6 +363,9 @@ export default function LayoutEditor() {
                   className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
+            </div>
+            <div className="border-t border-gray-200 pt-4">
+              <ThemeEditor value={themeForm} onChange={setThemeForm} />
             </div>
             <div className="flex justify-end">
               <button
