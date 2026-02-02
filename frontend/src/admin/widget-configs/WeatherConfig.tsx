@@ -6,64 +6,43 @@ interface Props {
 }
 
 export default function WeatherConfig({ config, onChange }: Props) {
-  const [latitude, setLatitude] = useState<string>(String(config.latitude ?? ""));
-  const [longitude, setLongitude] = useState<string>(String(config.longitude ?? ""));
+  const [zipCode, setZipCode] = useState<string>(config.zip_code ?? "");
   const [units, setUnits] = useState<string>(config.units ?? "imperial");
 
   useEffect(() => {
-    setLatitude(String(config.latitude ?? ""));
-    setLongitude(String(config.longitude ?? ""));
+    setZipCode(config.zip_code ?? "");
     setUnits(config.units ?? "imperial");
   }, [config]);
 
-  function handleChange(updates: Partial<{ latitude: string; longitude: string; units: string }>) {
-    const lat = updates.latitude ?? latitude;
-    const lon = updates.longitude ?? longitude;
-    const u = updates.units ?? units;
+  function handleZipChange(value: string) {
+    setZipCode(value);
+    onChange({ ...config, zip_code: value, units });
+  }
 
-    if (updates.latitude !== undefined) setLatitude(lat);
-    if (updates.longitude !== undefined) setLongitude(lon);
-    if (updates.units !== undefined) setUnits(u);
-
-    const next: Record<string, any> = { ...config, units: u };
-    const latNum = parseFloat(lat);
-    const lonNum = parseFloat(lon);
-    if (!isNaN(latNum)) next.latitude = latNum;
-    if (!isNaN(lonNum)) next.longitude = lonNum;
-
-    onChange(next);
+  function handleUnitsChange(value: string) {
+    setUnits(value);
+    onChange({ ...config, zip_code: zipCode, units: value });
   }
 
   return (
     <div className="space-y-4">
       <div>
-        <label htmlFor="weather-lat" className="block text-sm font-medium text-gray-700 mb-1">
-          Latitude
+        <label htmlFor="weather-zip" className="block text-sm font-medium text-gray-700 mb-1">
+          Zip Code
         </label>
         <input
-          id="weather-lat"
+          id="weather-zip"
           type="text"
-          inputMode="decimal"
-          value={latitude}
-          onChange={(e) => handleChange({ latitude: e.target.value })}
-          placeholder="e.g. 40.7128"
+          inputMode="numeric"
+          maxLength={5}
+          value={zipCode}
+          onChange={(e) => handleZipChange(e.target.value)}
+          placeholder="e.g. 10001"
           className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
         />
-      </div>
-
-      <div>
-        <label htmlFor="weather-lon" className="block text-sm font-medium text-gray-700 mb-1">
-          Longitude
-        </label>
-        <input
-          id="weather-lon"
-          type="text"
-          inputMode="decimal"
-          value={longitude}
-          onChange={(e) => handleChange({ longitude: e.target.value })}
-          placeholder="e.g. -74.0060"
-          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-        />
+        {config.location_name && (
+          <p className="mt-1 text-sm text-gray-500">{config.location_name}</p>
+        )}
       </div>
 
       <fieldset>
@@ -75,7 +54,7 @@ export default function WeatherConfig({ config, onChange }: Props) {
               name="weather-units"
               value="imperial"
               checked={units === "imperial"}
-              onChange={() => handleChange({ units: "imperial" })}
+              onChange={() => handleUnitsChange("imperial")}
               className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
             Imperial (F)
@@ -86,7 +65,7 @@ export default function WeatherConfig({ config, onChange }: Props) {
               name="weather-units"
               value="metric"
               checked={units === "metric"}
-              onChange={() => handleChange({ units: "metric" })}
+              onChange={() => handleUnitsChange("metric")}
               className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
             Metric (C)

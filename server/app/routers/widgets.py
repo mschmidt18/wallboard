@@ -3,19 +3,35 @@ from sqlalchemy.orm import Session
 from server.app.database import get_db
 from server.app.models import Layout, Widget
 from server.app.schemas import WidgetCreate, WidgetUpdate, WidgetResponse, WidgetPositionUpdate
+from server.app.services.geocoding import geocode_zip, GeocodingError
 
 router = APIRouter(tags=["widgets"])
 
 
+async def _resolve_weather_zip(config: dict) -> dict:
+    """If config has a zip_code, resolve it to lat/lon and merge into config."""
+    if "zip_code" not in config:
+        return config
+    try:
+        geo = await geocode_zip(config["zip_code"])
+    except GeocodingError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    config.update(geo)
+    return config
+
+
 @router.post("/api/layouts/{layout_id}/widgets", status_code=201, response_model=WidgetResponse)
-def add_widget(layout_id: int, body: WidgetCreate, db: Session = Depends(get_db)):
+async def add_widget(layout_id: int, body: WidgetCreate, db: Session = Depends(get_db)):
     layout = db.query(Layout).filter(Layout.id == layout_id).first()
     if not layout:
         raise HTTPException(status_code=404, detail="Layout not found")
+    config = body.config
+    if body.widget_type == "weather":
+        config = await _resolve_weather_zip(config)
     widget = Widget(
         layout_id=layout_id,
         widget_type=body.widget_type,
-        config=body.config,
+        config=config,
         position_x=body.position_x,
         position_y=body.position_y,
         width=body.width,
@@ -28,11 +44,13 @@ def add_widget(layout_id: int, body: WidgetCreate, db: Session = Depends(get_db)
 
 
 @router.put("/api/widgets/{widget_id}", response_model=WidgetResponse)
-def update_widget(widget_id: int, body: WidgetUpdate, db: Session = Depends(get_db)):
+async def update_widget(widget_id: int, body: WidgetUpdate, db: Session = Depends(get_db)):
     widget = db.query(Widget).filter(Widget.id == widget_id).first()
     if not widget:
         raise HTTPException(status_code=404, detail="Widget not found")
     update_data = body.model_dump(exclude_unset=True)
+    if widget.widget_type == "weather" and "config" in update_data:
+        update_data["config"] = await _resolve_weather_zip(update_data["config"])
     for key, value in update_data.items():
         setattr(widget, key, value)
     db.commit()
