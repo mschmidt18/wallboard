@@ -4,3 +4,5 @@ Issue 3: DONE
 Issue 6: DONE
 Issue 9: DONE
 Issue 7: DONE
+Issue 8: DONE
+Issue 1: DONE

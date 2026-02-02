@@ -10,10 +10,37 @@ export default function AdminShell() {
   const [errorMessage, setErrorMessage] = useState<string>("");
 
   useEffect(() => {
-    checkAuth();
+    let cancelled = false;
+
+    async function run() {
+      try {
+        const { setup_required } = await api.getAuthStatus();
+        if (cancelled) return;
+        if (setup_required) {
+          setAuthState("setup");
+          return;
+        }
+        await api.getSettings();
+        if (cancelled) return;
+        setAuthState("authenticated");
+      } catch (err) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("401")) {
+          setAuthState("unauthenticated");
+        } else {
+          setErrorMessage(message);
+          setAuthState("error");
+        }
+      }
+    }
+
+    run();
+    return () => { cancelled = true; };
   }, []);
 
   async function checkAuth() {
+    setAuthState("loading");
     try {
       const { setup_required } = await api.getAuthStatus();
       if (setup_required) {
@@ -49,7 +76,7 @@ export default function AdminShell() {
           <p className="text-gray-500 text-xs mb-4">{errorMessage}</p>
           <button
             className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-            onClick={() => { setAuthState("loading"); checkAuth(); }}
+            onClick={checkAuth}
           >
             Retry
           </button>
