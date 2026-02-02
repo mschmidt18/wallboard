@@ -7,6 +7,7 @@ Requires=wallboard-server.service
 Type=simple
 User=wallboard
 Group=wallboard
+SupplementaryGroups=video input
 Environment=DISPLAY=:0
 ExecStart=/bin/bash -c '\
   /usr/bin/xinit /bin/bash -c "\

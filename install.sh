@@ -91,6 +91,10 @@ else
     success "User $SERVICE_USER already exists"
 fi
 
+# Add video and input groups for X server and Chromium kiosk access
+usermod -aG video,input "$SERVICE_USER"
+success "Added $SERVICE_USER to video and input groups"
+
 WALLBOARD_DATA="/home/$SERVICE_USER/.wallboard"
 mkdir -p "$WALLBOARD_DATA"
 chown "$SERVICE_USER":"$SERVICE_USER" "$WALLBOARD_DATA"
