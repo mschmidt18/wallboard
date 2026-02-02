@@ -1,4 +1,4 @@
-import type { ThemeValues } from "../admin/ThemeEditor";
+import type { ThemeValues } from "../admin/theme-types";
 
 export type WidgetType = "calendar" | "photos" | "weather" | "clock" | "notes";
 

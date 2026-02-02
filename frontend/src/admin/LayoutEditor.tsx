@@ -7,8 +7,9 @@ import "react-resizable/css/styles.css";
 import { api } from "../shared/api";
 import type { Layout, Widget, WidgetType } from "../shared/types";
 import WidgetConfig from "./WidgetConfig";
-import ThemeEditor, { DEFAULT_THEME } from "./ThemeEditor";
-import type { ThemeValues } from "./ThemeEditor";
+import ThemeEditor from "./ThemeEditor";
+import { DEFAULT_THEME } from "./theme-types";
+import type { ThemeValues } from "./theme-types";
 
 const WIDGET_TYPES: { type: WidgetType; label: string; icon: string }[] = [
   { type: "clock", label: "Clock", icon: "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" },
