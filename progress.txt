@@ -58,3 +58,11 @@ Issue #8 - Path traversal in SPA fallback - DONE
   - Added test `test_path_traversal_with_encoded_slashes_blocked` (URL-encoded slash traversal)
   - Added test `test_path_traversal_with_encoded_dots_blocked` (URL-encoded dot traversal)
   - All 78 backend tests pass
+
+Issue #9 - No auth on admin-only routes - DONE
+  - Added `require_auth` as router-level dependency on `layouts.py`, `widgets.py`, and `google_data.py`
+  - Added `require_auth` as per-endpoint dependency on `integrations.py` (list, connect, disconnect) — Google callback excluded since it's an OAuth redirect
+  - Added `authed_client` fixture to `conftest.py` that sets up auth and logs in
+  - Updated existing tests in `test_layouts.py`, `test_widgets.py`, `test_display.py`, `test_e2e.py`, `test_google_data.py` to use `authed_client`
+  - Added 19 new tests in `test_admin_auth.py`: 401 for unauthenticated access to all admin endpoints, success with auth for layout/widget CRUD, display endpoint remains unauthenticated
+  - All 97 backend tests pass

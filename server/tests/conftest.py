@@ -51,3 +51,11 @@ def client(db_engine) -> TestClient:
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def authed_client(client, tmp_config) -> TestClient:
+    """A test client that is already authenticated with a valid session."""
+    client.post("/api/auth/setup", json={"password": "admin123"})
+    client.post("/api/auth/login", json={"password": "admin123"})
+    return client

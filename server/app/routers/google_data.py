@@ -5,12 +5,13 @@ from sqlalchemy.orm import Session
 
 from server.app.database import get_db
 from server.app.models import Integration
+from server.app.routers.settings import require_auth
 from server.app.services.encryption import load_or_create_key, decrypt
 from server.app.services.google_auth import get_valid_access_token
 from server.app.services.google_calendar import fetch_calendars, fetch_events
 from server.app.services.google_photos import fetch_albums, fetch_album_photos
 
-router = APIRouter(prefix="/api/google", tags=["google_data"])
+router = APIRouter(prefix="/api/google", tags=["google_data"], dependencies=[Depends(require_auth)])
 
 KEY_PATH = Path("/etc/wallboard/secret.key")
 SETTINGS_PATH = Path.home() / ".wallboard" / "settings.json"

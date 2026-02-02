@@ -7,13 +7,13 @@ MOCK_GEO_RESULT = {"lat": 40.7484, "lon": -73.9967, "location_name": "New York, 
 
 
 @pytest.fixture
-def layout_id(client):
-    resp = client.post("/api/layouts", json={"name": "Test Layout"})
+def layout_id(authed_client):
+    resp = authed_client.post("/api/layouts", json={"name": "Test Layout"})
     return resp.json()["id"]
 
 
-def test_add_widget_to_layout(client, layout_id):
-    response = client.post(f"/api/layouts/{layout_id}/widgets", json={
+def test_add_widget_to_layout(authed_client, layout_id):
+    response = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "clock",
         "config": {"timezone": "America/New_York", "format_24h": False},
         "position_x": 0, "position_y": 0, "width": 3, "height": 2,
@@ -24,51 +24,51 @@ def test_add_widget_to_layout(client, layout_id):
     assert data["layout_id"] == layout_id
 
 
-def test_update_widget(client, layout_id):
-    create_resp = client.post(f"/api/layouts/{layout_id}/widgets", json={
+def test_update_widget(authed_client, layout_id):
+    create_resp = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "notes", "config": {"content": "Hello"},
         "position_x": 0, "position_y": 0, "width": 3, "height": 2,
     })
     widget_id = create_resp.json()["id"]
-    response = client.put(f"/api/widgets/{widget_id}", json={"config": {"content": "Updated"}})
+    response = authed_client.put(f"/api/widgets/{widget_id}", json={"config": {"content": "Updated"}})
     assert response.status_code == 200
     assert response.json()["config"]["content"] == "Updated"
 
 
-def test_delete_widget(client, layout_id):
-    create_resp = client.post(f"/api/layouts/{layout_id}/widgets", json={
+def test_delete_widget(authed_client, layout_id):
+    create_resp = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "clock", "config": {},
         "position_x": 0, "position_y": 0, "width": 3, "height": 2,
     })
     widget_id = create_resp.json()["id"]
-    response = client.delete(f"/api/widgets/{widget_id}")
+    response = authed_client.delete(f"/api/widgets/{widget_id}")
     assert response.status_code == 204
 
 
-def test_batch_update_positions(client, layout_id):
-    r1 = client.post(f"/api/layouts/{layout_id}/widgets", json={
+def test_batch_update_positions(authed_client, layout_id):
+    r1 = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "clock", "config": {},
         "position_x": 0, "position_y": 0, "width": 3, "height": 2,
     })
-    r2 = client.post(f"/api/layouts/{layout_id}/widgets", json={
+    r2 = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "notes", "config": {"content": "Hi"},
         "position_x": 3, "position_y": 0, "width": 3, "height": 2,
     })
     id1 = r1.json()["id"]
     id2 = r2.json()["id"]
-    response = client.put(f"/api/layouts/{layout_id}/widgets/positions", json=[
+    response = authed_client.put(f"/api/layouts/{layout_id}/widgets/positions", json=[
         {"id": id1, "position_x": 6, "position_y": 0, "width": 4, "height": 3},
         {"id": id2, "position_x": 0, "position_y": 0, "width": 6, "height": 2},
     ])
     assert response.status_code == 200
-    layout = client.get(f"/api/layouts/{layout_id}").json()
+    layout = authed_client.get(f"/api/layouts/{layout_id}").json()
     widgets_by_id = {w["id"]: w for w in layout["widgets"]}
     assert widgets_by_id[id1]["position_x"] == 6
     assert widgets_by_id[id2]["width"] == 6
 
 
-def test_add_widget_to_nonexistent_layout(client):
-    response = client.post("/api/layouts/999/widgets", json={
+def test_add_widget_to_nonexistent_layout(authed_client):
+    response = authed_client.post("/api/layouts/999/widgets", json={
         "widget_type": "clock", "config": {},
         "position_x": 0, "position_y": 0, "width": 3, "height": 2,
     })
@@ -76,8 +76,8 @@ def test_add_widget_to_nonexistent_layout(client):
 
 
 @patch("server.app.routers.widgets.geocode_zip", new_callable=AsyncMock, return_value=MOCK_GEO_RESULT)
-def test_add_weather_widget_resolves_zip(mock_geocode, client, layout_id):
-    response = client.post(f"/api/layouts/{layout_id}/widgets", json={
+def test_add_weather_widget_resolves_zip(mock_geocode, authed_client, layout_id):
+    response = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "weather",
         "config": {"zip_code": "10001", "units": "imperial"},
         "position_x": 0, "position_y": 0, "width": 4, "height": 3,
@@ -92,8 +92,8 @@ def test_add_weather_widget_resolves_zip(mock_geocode, client, layout_id):
 
 
 @patch("server.app.routers.widgets.geocode_zip", new_callable=AsyncMock, return_value=MOCK_GEO_RESULT)
-def test_update_weather_widget_resolves_zip(mock_geocode, client, layout_id):
-    create_resp = client.post(f"/api/layouts/{layout_id}/widgets", json={
+def test_update_weather_widget_resolves_zip(mock_geocode, authed_client, layout_id):
+    create_resp = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "weather",
         "config": {"zip_code": "10001", "units": "imperial"},
         "position_x": 0, "position_y": 0, "width": 4, "height": 3,
@@ -101,7 +101,7 @@ def test_update_weather_widget_resolves_zip(mock_geocode, client, layout_id):
     widget_id = create_resp.json()["id"]
     mock_geocode.reset_mock()
 
-    response = client.put(f"/api/widgets/{widget_id}", json={
+    response = authed_client.put(f"/api/widgets/{widget_id}", json={
         "config": {"zip_code": "90210", "units": "imperial"},
     })
     assert response.status_code == 200
@@ -109,14 +109,14 @@ def test_update_weather_widget_resolves_zip(mock_geocode, client, layout_id):
     mock_geocode.assert_awaited_once_with("90210")
 
 
-def test_photos_widget_config_uses_interval_seconds(client, layout_id):
+def test_photos_widget_config_uses_interval_seconds(authed_client, layout_id):
     """Photos widget config must use 'interval_seconds' (not 'interval').
 
     The dashboard PhotosWidget reads config.interval_seconds. The admin
     PhotosConfig must emit interval_seconds so the configured slideshow
     interval actually takes effect.
     """
-    response = client.post(f"/api/layouts/{layout_id}/widgets", json={
+    response = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "photos",
         "config": {"album_id": "abc123", "interval_seconds": 45, "transition": "fade"},
         "position_x": 0, "position_y": 0, "width": 6, "height": 4,
@@ -128,14 +128,14 @@ def test_photos_widget_config_uses_interval_seconds(client, layout_id):
     assert "interval" not in config, "Config should NOT contain bare 'interval' key"
 
 
-def test_clock_widget_config_uses_format_24h(client, layout_id):
+def test_clock_widget_config_uses_format_24h(authed_client, layout_id):
     """Clock widget config must use 'format_24h' (not 'use_24h').
 
     The dashboard ClockWidget reads config.format_24h. The admin
     ClockConfig must emit format_24h so the 24-hour toggle actually
     takes effect.
     """
-    response = client.post(f"/api/layouts/{layout_id}/widgets", json={
+    response = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "clock",
         "config": {"timezone": "America/New_York", "format_24h": True},
         "position_x": 0, "position_y": 0, "width": 3, "height": 2,
@@ -149,8 +149,8 @@ def test_clock_widget_config_uses_format_24h(client, layout_id):
 
 @patch("server.app.routers.widgets.geocode_zip", new_callable=AsyncMock,
        side_effect=GeocodingError("No location found for zip code: 00000"))
-def test_add_weather_widget_invalid_zip_returns_400(mock_geocode, client, layout_id):
-    response = client.post(f"/api/layouts/{layout_id}/widgets", json={
+def test_add_weather_widget_invalid_zip_returns_400(mock_geocode, authed_client, layout_id):
+    response = authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
         "widget_type": "weather",
         "config": {"zip_code": "00000", "units": "imperial"},
         "position_x": 0, "position_y": 0, "width": 4, "height": 3,

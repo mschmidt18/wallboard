@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from server.app.database import get_db
 from server.app.models import Layout, Widget
+from server.app.routers.settings import require_auth
 from server.app.schemas import WidgetCreate, WidgetUpdate, WidgetResponse, WidgetPositionUpdate
 from server.app.services.geocoding import geocode_zip, GeocodingError
 
-router = APIRouter(tags=["widgets"])
+router = APIRouter(tags=["widgets"], dependencies=[Depends(require_auth)])
 
 
 async def _resolve_weather_zip(config: dict) -> dict:

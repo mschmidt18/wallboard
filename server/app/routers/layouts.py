@@ -3,11 +3,12 @@ from sqlalchemy.orm import Session
 
 from server.app.database import get_db
 from server.app.models import Layout
+from server.app.routers.settings import require_auth
 from server.app.schemas import (
     LayoutCreate, LayoutUpdate, LayoutResponse, LayoutListResponse,
 )
 
-router = APIRouter(prefix="/api/layouts", tags=["layouts"])
+router = APIRouter(prefix="/api/layouts", tags=["layouts"], dependencies=[Depends(require_auth)])
 
 
 @router.post("", status_code=201, response_model=LayoutResponse)

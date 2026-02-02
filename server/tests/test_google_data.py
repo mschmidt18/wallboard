@@ -23,12 +23,12 @@ def google_integration(db_session):
 
 @patch("server.app.routers.google_data.fetch_calendars", new_callable=AsyncMock)
 @patch("server.app.routers.google_data._get_access_token", new_callable=AsyncMock)
-def test_get_calendars(mock_token, mock_fetch, client, google_integration):
+def test_get_calendars(mock_token, mock_fetch, authed_client, google_integration):
     mock_token.return_value = "test-token"
     mock_fetch.return_value = [
         {"id": "primary", "name": "My Calendar", "color": "#4285f4"},
     ]
-    response = client.get("/api/google/calendars")
+    response = authed_client.get("/api/google/calendars")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -38,12 +38,12 @@ def test_get_calendars(mock_token, mock_fetch, client, google_integration):
 
 @patch("server.app.routers.google_data.fetch_albums", new_callable=AsyncMock)
 @patch("server.app.routers.google_data._get_access_token", new_callable=AsyncMock)
-def test_get_photo_albums(mock_token, mock_fetch, client, google_integration):
+def test_get_photo_albums(mock_token, mock_fetch, authed_client, google_integration):
     mock_token.return_value = "test-token"
     mock_fetch.return_value = [
         {"id": "album1", "title": "Vacation", "count": 42},
     ]
-    response = client.get("/api/google/photos/albums")
+    response = authed_client.get("/api/google/photos/albums")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -52,12 +52,12 @@ def test_get_photo_albums(mock_token, mock_fetch, client, google_integration):
 
 @patch("server.app.routers.google_data.fetch_album_photos", new_callable=AsyncMock)
 @patch("server.app.routers.google_data._get_access_token", new_callable=AsyncMock)
-def test_get_album_photos(mock_token, mock_fetch, client, google_integration):
+def test_get_album_photos(mock_token, mock_fetch, authed_client, google_integration):
     mock_token.return_value = "test-token"
     mock_fetch.return_value = [
         {"id": "photo1", "url": "https://example.com/photo1", "width": 1920, "height": 1080},
     ]
-    response = client.get("/api/google/photos/albums/album1/photos")
+    response = authed_client.get("/api/google/photos/albums/album1/photos")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -65,8 +65,8 @@ def test_get_album_photos(mock_token, mock_fetch, client, google_integration):
 
 
 @patch("server.app.routers.google_data._get_access_token", new_callable=AsyncMock)
-def test_get_calendars_without_integration(mock_token, client):
+def test_get_calendars_without_integration(mock_token, authed_client):
     from fastapi import HTTPException
     mock_token.side_effect = HTTPException(status_code=400, detail="Google not connected")
-    response = client.get("/api/google/calendars")
+    response = authed_client.get("/api/google/calendars")
     assert response.status_code == 400

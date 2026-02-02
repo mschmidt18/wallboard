@@ -1,11 +1,12 @@
 import json
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from server.app.database import get_db
 from server.app.models import Integration
+from server.app.routers.settings import require_auth
 from server.app.services.google_auth import build_auth_url, exchange_code
 from server.app.services.encryption import load_or_create_key, encrypt, decrypt
 
@@ -21,7 +22,7 @@ def _get_settings() -> dict:
     return {}
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_auth)])
 def list_integrations(db: Session = Depends(get_db)):
     integrations = db.query(Integration).all()
     return [
@@ -35,7 +36,7 @@ def list_integrations(db: Session = Depends(get_db)):
     ]
 
 
-@router.post("/google/connect")
+@router.post("/google/connect", dependencies=[Depends(require_auth)])
 def connect_google(request: Request, db: Session = Depends(get_db)):
     settings = _get_settings()
     client_id = settings.get("google_client_id")
@@ -84,7 +85,7 @@ async def google_callback(code: str, request: Request, db: Session = Depends(get
     return RedirectResponse(url="/admin/integrations?connected=true")
 
 
-@router.delete("/google", status_code=204)
+@router.delete("/google", status_code=204, dependencies=[Depends(require_auth)])
 def disconnect_google(db: Session = Depends(get_db)):
     integration = db.query(Integration).filter(Integration.provider == "google").first()
     if not integration:
