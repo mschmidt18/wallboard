@@ -79,7 +79,7 @@ def activate_layout(layout_id: int, db: Session = Depends(get_db)):
     layout = db.query(Layout).filter(Layout.id == layout_id).first()
     if not layout:
         raise HTTPException(status_code=404, detail="Layout not found")
-    db.query(Layout).filter(Layout.is_active == True).update({"is_active": False})
+    db.query(Layout).filter(Layout.is_active == True, Layout.id != layout_id).update({"is_active": False})
     layout.is_active = True
     db.commit()
     db.refresh(layout)

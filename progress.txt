@@ -146,3 +146,17 @@ Issue #20 - `display.py` loads entire cache table on every poll - DONE
   - When no widgets need cache data (e.g., all clock/notes widgets), skips the query entirely
   - Added test `test_display_only_loads_relevant_cache_entries` verifying correct data matching and `_get_cache_key` for all widget types
   - All 106 backend tests pass
+
+Issue #21 - No `check_same_thread=False` for SQLite with FastAPI - DONE (commit bb9beb1)
+  - Added `connect_args={"check_same_thread": False}` to `create_engine` in `database.py`
+  - FastAPI runs sync route handlers in a threadpool; SQLite's default `check_same_thread=True` can raise `ProgrammingError` under concurrent load
+  - This is the standard known-correct pattern for SQLite + FastAPI/Starlette
+  - All 106 backend tests pass
+
+Issue #22 - `activate_layout` race condition with ORM bulk update - DONE
+  - Changed deactivation query to exclude the target layout: `Layout.id != layout_id`
+  - Previously, bulk update set ALL active layouts to false (including the target), then ORM set the target back to true
+  - This was fragile: depended on SQLAlchemy flush ordering to work correctly
+  - Now the target layout is never deactivated, eliminating the race condition
+  - Added test `test_activate_already_active_layout` verifying re-activating an already-active layout keeps it active and is the only active layout
+  - All 107 backend tests pass

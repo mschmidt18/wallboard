@@ -64,3 +64,26 @@ def test_activate_layout(authed_client):
     authed_client.post(f"/api/layouts/{id2}/activate")
     assert authed_client.get(f"/api/layouts/{id2}").json()["is_active"] is True
     assert authed_client.get(f"/api/layouts/{id1}").json()["is_active"] is False
+
+
+def test_activate_already_active_layout(authed_client):
+    """Activating an already-active layout should keep it active and be the only active one."""
+    resp1 = authed_client.post("/api/layouts", json={"name": "Layout A"})
+    resp2 = authed_client.post("/api/layouts", json={"name": "Layout B"})
+    id1 = resp1.json()["id"]
+    id2 = resp2.json()["id"]
+
+    # Activate layout A
+    authed_client.post(f"/api/layouts/{id1}/activate")
+    assert authed_client.get(f"/api/layouts/{id1}").json()["is_active"] is True
+
+    # Activate layout A again (already active)
+    response = authed_client.post(f"/api/layouts/{id1}/activate")
+    assert response.status_code == 200
+    assert response.json()["is_active"] is True
+
+    # Verify layout A is still active and is the only active layout
+    all_layouts = authed_client.get("/api/layouts").json()
+    active_layouts = [l for l in all_layouts if l["is_active"]]
+    assert len(active_layouts) == 1
+    assert active_layouts[0]["id"] == id1
