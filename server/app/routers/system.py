@@ -6,7 +6,7 @@ from fastapi import APIRouter, Cookie
 
 from server.app.config import Config
 from server.app.routers.settings import require_auth
-from server.app.schemas import VersionResponse
+from server.app.schemas import UpdateCheckResponse, VersionResponse
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -44,4 +44,40 @@ def get_version(session: Optional[str] = Cookie(None)):
         commit_short=_git("rev-parse", "--short", "HEAD"),
         commit_date=_git("log", "-1", "--format=%ci"),
         branch=_git("rev-parse", "--abbrev-ref", "HEAD"),
+    )
+
+
+@router.post("/check-update", response_model=UpdateCheckResponse)
+def check_update(session: Optional[str] = Cookie(None)):
+    require_auth(session)
+
+    # Fetch latest from origin
+    try:
+        subprocess.run(
+            ["git", "fetch", "origin"],
+            capture_output=True,
+            text=True,
+            cwd=PROJECT_ROOT,
+            timeout=30,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        return UpdateCheckResponse(error=str(e))
+
+    # Count commits behind
+    count_str = _git("rev-list", "--count", "HEAD..origin/main")
+    if count_str is None:
+        return UpdateCheckResponse(error="Failed to determine commits behind")
+
+    commits_behind = int(count_str)
+    commits: list[str] = []
+
+    if commits_behind > 0:
+        log_output = _git("log", "--oneline", "HEAD..origin/main")
+        if log_output:
+            commits = [line for line in log_output.splitlines() if line.strip()]
+
+    return UpdateCheckResponse(
+        up_to_date=commits_behind == 0,
+        commits_behind=commits_behind,
+        commits=commits,
     )
