@@ -1,9 +1,12 @@
 import json
 from pathlib import Path
+from typing import Optional
+
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+from server.app.config import Config
 from server.app.database import get_db
 from server.app.models import Integration
 from server.app.routers.settings import require_auth
@@ -12,13 +15,29 @@ from server.app.services.encryption import load_or_create_key, encrypt, decrypt
 
 router = APIRouter(prefix="/api/integrations", tags=["integrations"])
 
-SETTINGS_PATH = Path.home() / ".wallboard" / "settings.json"
-KEY_PATH = Path("/etc/wallboard/secret.key")
+# Module-level config; set via set_config() during app startup or tests.
+_config: Optional[Config] = None
+
+
+def set_config(config: Config) -> None:
+    global _config
+    _config = config
+
+
+def _settings_path() -> Path:
+    assert _config is not None, "Config not set; call set_config() first"
+    return _config.db_path.parent / "settings.json"
+
+
+def _key_path() -> Path:
+    assert _config is not None, "Config not set; call set_config() first"
+    return _config.secret_key_path
 
 
 def _get_settings() -> dict:
-    if SETTINGS_PATH.exists():
-        return json.loads(SETTINGS_PATH.read_text())
+    path = _settings_path()
+    if path.exists():
+        return json.loads(path.read_text())
     return {}
 
 
@@ -66,7 +85,7 @@ async def google_callback(code: str, request: Request, db: Session = Depends(get
     if "expires_in" in tokens and "expires_at" not in tokens:
         tokens["expires_at"] = time.time() + tokens["expires_in"]
 
-    key = load_or_create_key(KEY_PATH)
+    key = load_or_create_key(_key_path())
     encrypted = encrypt(json.dumps(tokens), key)
 
     existing = db.query(Integration).filter(Integration.provider == "google").first()

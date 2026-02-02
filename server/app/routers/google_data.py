@@ -1,8 +1,11 @@
 import json
 from pathlib import Path
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from server.app.config import Config
 from server.app.database import get_db
 from server.app.models import Integration
 from server.app.routers.settings import require_auth
@@ -13,15 +16,31 @@ from server.app.services.google_photos import fetch_albums, fetch_album_photos
 
 router = APIRouter(prefix="/api/google", tags=["google_data"], dependencies=[Depends(require_auth)])
 
-KEY_PATH = Path("/etc/wallboard/secret.key")
-SETTINGS_PATH = Path.home() / ".wallboard" / "settings.json"
+# Module-level config; set via set_config() during app startup or tests.
+_config: Optional[Config] = None
+
+
+def set_config(config: Config) -> None:
+    global _config
+    _config = config
+
+
+def _key_path() -> Path:
+    assert _config is not None, "Config not set; call set_config() first"
+    return _config.secret_key_path
+
+
+def _settings_path() -> Path:
+    assert _config is not None, "Config not set; call set_config() first"
+    return _config.db_path.parent / "settings.json"
 
 
 async def _get_access_token(db: Session) -> str:
-    key = load_or_create_key(KEY_PATH)
+    key = load_or_create_key(_key_path())
+    settings_file = _settings_path()
     settings = {}
-    if SETTINGS_PATH.exists():
-        settings = json.loads(SETTINGS_PATH.read_text())
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
     client_id = settings.get("google_client_id", "")
     client_secret = settings.get("google_client_secret", "")
 

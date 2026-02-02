@@ -9,12 +9,16 @@ from server.app.models import Base
 from server.app.main import app
 from server.app import database
 from server.app.routers import settings as settings_router
+from server.app.routers import integrations as integrations_router
+from server.app.routers import google_data as google_data_router
 
 
 @pytest.fixture
 def tmp_config(tmp_path: Path) -> Config:
     config = Config.for_testing(tmp_path)
     settings_router.set_config(config)
+    integrations_router.set_config(config)
+    google_data_router.set_config(config)
     yield config
     # Clear sessions between tests
     settings_router._sessions.clear()

@@ -19,10 +19,12 @@ async def lifespan(app: FastAPI):
     config = Config.default()
     setup_logging(level=config.log_level)
     settings_router.set_config(config)
+    integrations.set_config(config)
+    google_data.set_config(config)
     engine = init_db(config.db_path)
     session_factory = get_session_factory(engine)
     refresh_task = asyncio.create_task(
-        start_refresh_loop(session_factory, config.display_refresh_interval)
+        start_refresh_loop(session_factory, config.display_refresh_interval, config)
     )
     yield
     refresh_task.cancel()

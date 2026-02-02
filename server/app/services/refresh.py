@@ -2,6 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import sessionmaker, Session
+from server.app.config import Config
 from server.app.models import Widget, Cache, Integration
 from server.app.services.weather import fetch_weather
 from server.app.services.google_calendar import fetch_events
@@ -55,17 +56,16 @@ def _is_cache_fresh(session: Session, source_key: str) -> bool:
         expires = expires.replace(tzinfo=timezone.utc)
     return now < expires
 
-async def _get_google_access_token(session: Session) -> str | None:
+async def _get_google_access_token(session: Session, config: Config) -> str | None:
     """Get a valid Google access token, refreshing if expired."""
     import json
-    from pathlib import Path
     from server.app.services.encryption import load_or_create_key
     from server.app.services.google_auth import get_valid_access_token
 
     try:
-        key = load_or_create_key(Path("/etc/wallboard/secret.key"))
+        key = load_or_create_key(config.secret_key_path)
         # Read settings to get client_id and client_secret for token refresh
-        settings_path = Path.home() / ".wallboard" / "settings.json"
+        settings_path = config.db_path.parent / "settings.json"
         settings = {}
         if settings_path.exists():
             settings = json.loads(settings_path.read_text())
@@ -83,14 +83,14 @@ async def _get_google_access_token(session: Session) -> str | None:
         return None
 
 
-async def _fetch_source(source: dict, session_factory: sessionmaker) -> dict | None:
+async def _fetch_source(source: dict, session_factory: sessionmaker, config: Config) -> dict | None:
     source_type = source["type"]
     params = source["params"]
     if source_type == "weather":
         return await fetch_weather(**params)
     elif source_type == "calendar":
         with session_factory() as session:
-            access_token = await _get_google_access_token(session)
+            access_token = await _get_google_access_token(session, config)
         if not access_token:
             logger.warning("No Google access token for calendar fetch")
             return None
@@ -100,7 +100,7 @@ async def _fetch_source(source: dict, session_factory: sessionmaker) -> dict | N
         return {"events": events}
     elif source_type == "photos":
         with session_factory() as session:
-            access_token = await _get_google_access_token(session)
+            access_token = await _get_google_access_token(session, config)
         if not access_token:
             logger.warning("No Google access token for photos fetch")
             return None
@@ -124,7 +124,9 @@ def _update_cache(session: Session, key: str, data: dict, interval: timedelta):
         session.add(cache)
     session.commit()
 
-async def refresh_once(session_factory: sessionmaker):
+async def refresh_once(session_factory: sessionmaker, config: Config | None = None):
+    if config is None:
+        config = Config.default()
     with session_factory() as session:
         sources = _collect_data_sources(session)
     for source in sources:
@@ -133,7 +135,7 @@ async def refresh_once(session_factory: sessionmaker):
                 logger.debug(f"Cache fresh for {source['key']}, skipping")
                 continue
         try:
-            data = await _fetch_source(source, session_factory)
+            data = await _fetch_source(source, session_factory, config)
             if data is not None:
                 with session_factory() as session:
                     _update_cache(session, source["key"], data, source["interval"])
@@ -141,10 +143,12 @@ async def refresh_once(session_factory: sessionmaker):
         except Exception as e:
             logger.error(f"Failed to refresh {source['key']}: {e}")
 
-async def start_refresh_loop(session_factory: sessionmaker, interval_seconds: int = 60):
+async def start_refresh_loop(session_factory: sessionmaker, interval_seconds: int = 60, config: Config | None = None):
+    if config is None:
+        config = Config.default()
     while True:
         try:
-            await refresh_once(session_factory)
+            await refresh_once(session_factory, config)
         except Exception as e:
             logger.error(f"Refresh loop error: {e}")
         await asyncio.sleep(interval_seconds)
