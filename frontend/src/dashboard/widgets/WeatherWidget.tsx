@@ -1,10 +1,30 @@
+interface DayForecast {
+  date: string;
+  high: number;
+  low: number;
+  weather_code: number;
+}
+
+interface WeatherData {
+  current: {
+    temperature: number;
+    feels_like: number;
+    humidity: number;
+    wind_speed: number;
+    weather_code: number;
+    condition: string;
+    units: string;
+  };
+  daily: DayForecast[];
+}
+
 interface WeatherWidgetProps {
   config: {
     lat?: number;
     lon?: number;
     units?: string;
   };
-  data?: Record<string, any> | null;
+  data?: Record<string, unknown> | null;
 }
 
 function getDayName(dateStr: string): string {
@@ -42,7 +62,7 @@ export default function WeatherWidget({ data }: WeatherWidgetProps) {
     );
   }
 
-  const { current, daily } = data;
+  const { current, daily } = data as unknown as WeatherData;
   const unitSymbol = current.units === "metric" ? "\u00B0C" : "\u00B0F";
   const speedUnit = current.units === "metric" ? "km/h" : "mph";
 
@@ -65,7 +85,7 @@ export default function WeatherWidget({ data }: WeatherWidgetProps) {
       {/* 7-day forecast */}
       {daily && daily.length > 0 && (
         <div className="flex gap-1 justify-between mt-3 pt-3 border-t border-white/10 shrink-0">
-          {daily.map((day: Record<string, any>) => (
+          {daily.map((day: DayForecast) => (
             <div
               key={day.date}
               className="flex flex-col items-center text-xs text-white/70 min-w-0"
