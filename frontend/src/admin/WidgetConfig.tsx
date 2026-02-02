@@ -22,7 +22,7 @@ interface Props {
 }
 
 export default function WidgetConfig({ widget, onClose, onSaved }: Props) {
-  const [config, setConfig] = useState<Record<string, any>>(widget.config);
+  const [config, setConfig] = useState<Record<string, unknown>>(widget.config);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -35,7 +35,7 @@ export default function WidgetConfig({ widget, onClose, onSaved }: Props) {
     setError(null);
   }, [widget.id, configJson]);
 
-  const handleChange = useCallback((newConfig: Record<string, any>) => {
+  const handleChange = useCallback((newConfig: Record<string, unknown>) => {
     setConfig(newConfig);
     setDirty(true);
   }, []);
