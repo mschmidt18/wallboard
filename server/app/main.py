@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from server.app.config import Config
 from server.app.database import init_db
 from server.app.routers import layouts, widgets
+from server.app.routers import settings as settings_router
 
 
 @asynccontextmanager
@@ -15,6 +16,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Wallboard", lifespan=lifespan)
 app.include_router(layouts.router)
 app.include_router(widgets.router)
+app.include_router(settings_router.router)
 
 
 @app.get("/api/health")

@@ -8,11 +8,16 @@ from server.app.config import Config
 from server.app.models import Base
 from server.app.main import app
 from server.app import database
+from server.app.routers import settings as settings_router
 
 
 @pytest.fixture
 def tmp_config(tmp_path: Path) -> Config:
-    return Config.for_testing(tmp_path)
+    config = Config.for_testing(tmp_path)
+    settings_router.set_config(config)
+    yield config
+    # Clear sessions between tests
+    settings_router._sessions.clear()
 
 
 @pytest.fixture
