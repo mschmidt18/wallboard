@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 const COMMON_TIMEZONES = [
   "America/New_York",
@@ -30,18 +30,13 @@ const COMMON_TIMEZONES = [
 ];
 
 interface Props {
-  config: Record<string, any>;
-  onChange: (config: Record<string, any>) => void;
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
 }
 
 export default function ClockConfig({ config, onChange }: Props) {
-  const [timezone, setTimezone] = useState<string>(config.timezone ?? "");
-  const [format24h, setFormat24h] = useState<boolean>(config.format_24h ?? false);
-
-  useEffect(() => {
-    setTimezone(config.timezone ?? "");
-    setFormat24h(config.format_24h ?? false);
-  }, [config]);
+  const [timezone, setTimezone] = useState<string>((config.timezone as string | undefined) ?? "");
+  const [format24h, setFormat24h] = useState<boolean>((config.format_24h as boolean | undefined) ?? false);
 
   function handleChange(updates: Partial<{ timezone: string; format_24h: boolean }>) {
     const next = {

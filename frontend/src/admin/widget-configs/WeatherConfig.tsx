@@ -35,8 +35,8 @@ export default function WeatherConfig({ config, onChange }: Props) {
           placeholder="e.g. 10001"
           className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
         />
-        {config.location_name && (
-          <p className="mt-1 text-sm text-gray-500">{config.location_name}</p>
+        {(config.location_name as string | undefined) && (
+          <p className="mt-1 text-sm text-gray-500">{config.location_name as string}</p>
         )}
       </div>
 

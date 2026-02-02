@@ -1,6 +1,6 @@
 interface CalendarWidgetProps {
-  config: Record<string, any>;
-  data?: Record<string, any> | null;
+  config: Record<string, unknown>;
+  data?: Record<string, unknown> | null;
 }
 
 interface CalendarEvent {
@@ -59,7 +59,7 @@ export default function CalendarWidget({ data }: CalendarWidgetProps) {
     );
   }
 
-  const events: CalendarEvent[] = data.events ?? [];
+  const events: CalendarEvent[] = (data.events as CalendarEvent[] | undefined) ?? [];
 
   if (events.length === 0) {
     return (
