@@ -11,6 +11,7 @@ from server.app.database import init_db, get_session_factory
 from server.app.logging import setup_logging
 from server.app.routers import layouts, widgets, display, integrations, google_data
 from server.app.routers import settings as settings_router
+from server.app.routers import system as system_router
 from server.app.services.refresh import start_refresh_loop
 
 
@@ -22,6 +23,7 @@ async def lifespan(app: FastAPI):
     display.set_config(config)
     integrations.set_config(config)
     google_data.set_config(config)
+    system_router.set_config(config)
     engine = init_db(config.db_path)
     session_factory = get_session_factory(engine)
     refresh_task = asyncio.create_task(
@@ -42,6 +44,7 @@ app.include_router(settings_router.router)
 app.include_router(display.router)
 app.include_router(integrations.router)
 app.include_router(google_data.router)
+app.include_router(system_router.router)
 
 
 logger = structlog.get_logger()

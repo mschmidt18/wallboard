@@ -12,6 +12,7 @@ from server.app.routers import settings as settings_router
 from server.app.routers import display as display_router
 from server.app.routers import integrations as integrations_router
 from server.app.routers import google_data as google_data_router
+from server.app.routers import system as system_router
 
 
 @pytest.fixture
@@ -21,6 +22,7 @@ def tmp_config(tmp_path: Path) -> Config:
     display_router.set_config(config)
     integrations_router.set_config(config)
     google_data_router.set_config(config)
+    system_router.set_config(config)
     yield config
     # Reset module-level state to avoid leaking between tests
     settings_router._sessions.clear()
@@ -28,6 +30,7 @@ def tmp_config(tmp_path: Path) -> Config:
     display_router._config = None
     integrations_router._config = None
     google_data_router._config = None
+    system_router._config = None
 
 
 @pytest.fixture

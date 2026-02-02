@@ -107,3 +107,26 @@ class DisplayResponse(BaseModel):
     layout: dict[str, Any]
     widgets: list[DisplayWidgetResponse]
     refresh_interval: int = 60
+
+
+# --- System ---
+
+class VersionResponse(BaseModel):
+    commit: str | None = None
+    commit_short: str | None = None
+    commit_date: str | None = None
+    branch: str | None = None
+
+
+class UpdateCheckResponse(BaseModel):
+    up_to_date: bool | None = None
+    commits_behind: int | None = None
+    commits: list[str] = []
+    error: str | None = None
+
+
+class UpdateResponse(BaseModel):
+    status: str
+    steps_completed: list[str] = []
+    step_failed: str | None = None
+    fallback_instructions: str | None = None
