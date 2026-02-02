@@ -45,3 +45,16 @@ Issue #6 - Theme settings not applied to dashboard display - DONE
   - Applied `font_scale` as CSS font-size (rem) on root dashboard element
   - Applied `widget_background` (transparent/semi-transparent/solid) as backgroundColor on each widget cell
   - No lint errors in Dashboard.tsx; all 76 backend tests pass
+
+Issue #7 - `test_display_merges_cached_data` never asserts cached data - DONE (commit a2ed9c6)
+  - Added assertion `weather_widget["data"] == {"temp": 72, "condition": "sunny"}` to verify cached data is actually merged
+  - Test now fails if the display endpoint ignores the cache, previously it only checked widget_type
+  - All 76 backend tests pass
+
+Issue #8 - Path traversal in SPA fallback - DONE
+  - Added `resolve().is_relative_to()` check in `serve_spa` route handler in `main.py`
+  - After resolving the file path, verifies it stays within `frontend_dist` before serving
+  - Paths that escape the dist directory fall through to serving `index.html`
+  - Added test `test_path_traversal_with_encoded_slashes_blocked` (URL-encoded slash traversal)
+  - Added test `test_path_traversal_with_encoded_dots_blocked` (URL-encoded dot traversal)
+  - All 78 backend tests pass
