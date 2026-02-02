@@ -17,8 +17,7 @@ async def _resolve_weather_zip(config: dict) -> dict:
         geo = await geocode_zip(config["zip_code"])
     except GeocodingError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    config.update(geo)
-    return config
+    return {**config, **geo}
 
 
 @router.post("/api/layouts/{layout_id}/widgets", status_code=201, response_model=WidgetResponse)

@@ -147,6 +147,27 @@ def test_clock_widget_config_uses_format_24h(authed_client, layout_id):
     assert "use_24h" not in config, "Config should NOT contain 'use_24h' key"
 
 
+@pytest.mark.asyncio
+@patch("server.app.routers.widgets.geocode_zip", new_callable=AsyncMock, return_value=MOCK_GEO_RESULT)
+async def test_resolve_weather_zip_does_not_mutate_input_config(mock_geocode):
+    """_resolve_weather_zip must not mutate the original config dict in-place."""
+    from server.app.routers.widgets import _resolve_weather_zip
+
+    original = {"zip_code": "10001", "units": "imperial"}
+    original_snapshot = original.copy()
+
+    result = await _resolve_weather_zip(original)
+
+    # Result should have geo fields merged
+    assert result["lat"] == 40.7484
+    assert result["lon"] == -73.9967
+    assert result["zip_code"] == "10001"
+    # Original dict must NOT be mutated
+    assert original == original_snapshot, (
+        f"Original config was mutated in-place: {original} != {original_snapshot}"
+    )
+
+
 @patch("server.app.routers.widgets.geocode_zip", new_callable=AsyncMock,
        side_effect=GeocodingError("No location found for zip code: 00000"))
 def test_add_weather_widget_invalid_zip_returns_400(mock_geocode, authed_client, layout_id):

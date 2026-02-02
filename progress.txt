@@ -160,3 +160,10 @@ Issue #22 - `activate_layout` race condition with ORM bulk update - DONE
   - Now the target layout is never deactivated, eliminating the race condition
   - Added test `test_activate_already_active_layout` verifying re-activating an already-active layout keeps it active and is the only active layout
   - All 107 backend tests pass
+
+Issue #23 - `_resolve_weather_zip` mutates Pydantic model's config dict in-place - DONE
+  - Changed `config.update(geo)` to `return {**config, **geo}` in `_resolve_weather_zip` in `widgets.py`
+  - Previously, calling `config.update(geo)` mutated the dict that is an alias to `body.config` (the Pydantic model's internal dict)
+  - Now returns a new merged dict without modifying the original, eliminating the mutation side-effect
+  - Added test `test_resolve_weather_zip_does_not_mutate_input_config` that calls the function directly and asserts the original dict is unchanged
+  - All 108 backend tests pass
