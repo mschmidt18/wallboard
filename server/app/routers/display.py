@@ -34,7 +34,11 @@ def _get_refresh_interval() -> int:
 
 
 def _get_cache_key(widget) -> str | None:
-    """Determine cache key based on widget type and config."""
+    """Determine cache key based on widget type and config.
+
+    For calendar widgets with calendar_sources, returns None (handled by
+    _get_calendar_cache_keys instead).
+    """
     wtype = widget.widget_type
     config = widget.config or {}
     if wtype == "weather":
@@ -43,6 +47,8 @@ def _get_cache_key(widget) -> str | None:
         if lat is not None and lon is not None:
             return f"weather_{lat}_{lon}"
     elif wtype == "calendar":
+        if config.get("calendar_sources"):
+            return None  # Multi-source handled separately
         calendar_ids = sorted(config.get("calendar_ids", ["primary"]))
         days_ahead = config.get("days_ahead", 7)
         return f"google_calendar_{'_'.join(calendar_ids)}_{days_ahead}"
@@ -53,6 +59,73 @@ def _get_cache_key(widget) -> str | None:
     return None
 
 
+def _get_calendar_cache_keys(config: dict) -> list[tuple[str, str]]:
+    """For calendar widgets with calendar_sources, return list of (source_label, cache_key) tuples."""
+    calendar_sources = config.get("calendar_sources", [])
+    days_ahead = config.get("days_ahead", 7)
+    keys = []
+    google_ids = []
+    for cs in calendar_sources:
+        if cs["type"] == "google":
+            google_ids.append(cs["id"])
+        elif cs["type"] == "ics":
+            keys.append((f"ics:{cs['id']}", f"ics_calendar_{cs['id']}"))
+    if google_ids:
+        sorted_ids = sorted(google_ids)
+        cache_key = f"google_calendar_{'_'.join(sorted_ids)}_{days_ahead}"
+        for gid in sorted_ids:
+            keys.append((f"google:{gid}", cache_key))
+    return keys
+
+
+def _merge_calendar_data(widget, cache_entries: dict) -> dict | None:
+    """Merge events from multiple calendar sources, apply colors, sort by start."""
+    config = widget.config or {}
+    calendar_sources = config.get("calendar_sources", [])
+    if not calendar_sources:
+        return None
+
+    colors = config.get("colors", {})
+    days_ahead = config.get("days_ahead", 7)
+    all_events = []
+
+    # Collect Google calendar events
+    google_ids = [cs["id"] for cs in calendar_sources if cs["type"] == "google"]
+    if google_ids:
+        sorted_ids = sorted(google_ids)
+        cache_key = f"google_calendar_{'_'.join(sorted_ids)}_{days_ahead}"
+        cached = cache_entries.get(cache_key)
+        if cached and "events" in cached:
+            for event in cached["events"]:
+                # Apply color for each Google source
+                # Google events don't have a source label, apply first matching color
+                for gid in google_ids:
+                    color = colors.get(f"google:{gid}")
+                    if color:
+                        event = {**event, "color": color}
+                        break
+                all_events.append(event)
+
+    # Collect ICS calendar events
+    for cs in calendar_sources:
+        if cs["type"] == "ics":
+            cache_key = f"ics_calendar_{cs['id']}"
+            cached = cache_entries.get(cache_key)
+            if cached and "events" in cached:
+                color = colors.get(f"ics:{cs['id']}")
+                for event in cached["events"]:
+                    if color:
+                        event = {**event, "color": color}
+                    all_events.append(event)
+
+    if not all_events:
+        return None
+
+    # Sort by start time
+    all_events.sort(key=lambda e: e.get("start", ""))
+    return {"events": all_events}
+
+
 @router.get("/api/display", response_model=DisplayResponse)
 def get_display(db: Session = Depends(get_db)):
     layout = db.query(Layout).filter(Layout.is_active == True).first()
@@ -61,21 +134,34 @@ def get_display(db: Session = Depends(get_db)):
 
     # Compute needed cache keys from the active layout's widgets, then query only those
     cache_keys = {}
-    for widget in layout.widgets:
-        key = _get_cache_key(widget)
-        if key:
-            cache_keys[widget.id] = key
+    multi_source_widgets = set()
+    all_needed_keys = set()
 
-    needed_keys = set(cache_keys.values())
-    if needed_keys:
-        cache_entries = {c.source: c.data for c in db.query(Cache).filter(Cache.source.in_(needed_keys)).all()}
+    for widget in layout.widgets:
+        config = widget.config or {}
+        if widget.widget_type == "calendar" and config.get("calendar_sources"):
+            multi_source_widgets.add(widget.id)
+            cal_keys = _get_calendar_cache_keys(config)
+            for _label, cache_key in cal_keys:
+                all_needed_keys.add(cache_key)
+        else:
+            key = _get_cache_key(widget)
+            if key:
+                cache_keys[widget.id] = key
+                all_needed_keys.add(key)
+
+    if all_needed_keys:
+        cache_entries = {c.source: c.data for c in db.query(Cache).filter(Cache.source.in_(all_needed_keys)).all()}
     else:
         cache_entries = {}
 
     widgets = []
     for widget in layout.widgets:
-        cache_key = cache_keys.get(widget.id)
-        data = cache_entries.get(cache_key) if cache_key else None
+        if widget.id in multi_source_widgets:
+            data = _merge_calendar_data(widget, cache_entries)
+        else:
+            cache_key = cache_keys.get(widget.id)
+            data = cache_entries.get(cache_key) if cache_key else None
         widgets.append(DisplayWidgetResponse(
             id=widget.id,
             widget_type=widget.widget_type,

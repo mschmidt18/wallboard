@@ -141,3 +141,176 @@ def test_display_includes_custom_refresh_interval(authed_client, tmp_config):
     assert response.status_code == 200
     data = response.json()
     assert data["refresh_interval"] == 120
+
+
+def test_display_merged_calendar_sources(authed_client, db_session):
+    """Widget with Google + ICS sources, both cached, returns merged events sorted by start."""
+    from server.app.models import Cache, IcsCalendar
+
+    # Create an ICS calendar record
+    ics_cal = IcsCalendar(name="Work ICS", url="https://example.com/cal.ics", color="#ff0000")
+    db_session.add(ics_cal)
+    db_session.commit()
+    ics_id = ics_cal.id
+
+    # Create layout with a calendar widget using new calendar_sources format
+    resp = authed_client.post("/api/layouts", json={"name": "Multi Source"})
+    layout_id = resp.json()["id"]
+    authed_client.post(f"/api/layouts/{layout_id}/activate")
+    authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
+        "widget_type": "calendar",
+        "config": {
+            "calendar_sources": [
+                {"type": "google", "id": "work"},
+                {"type": "ics", "id": ics_id},
+            ],
+            "days_ahead": 7,
+            "colors": {"google:work": "#0000ff", "ics:" + str(ics_id): "#ff0000"},
+        },
+        "position_x": 0, "position_y": 0, "width": 6, "height": 4,
+    })
+
+    # Populate cache for both sources
+    db_session.add(Cache(
+        source="google_calendar_work_7",
+        data={"events": [
+            {"title": "Google Meeting", "start": "2026-02-03T10:00:00", "end": "2026-02-03T11:00:00"},
+            {"title": "Google Standup", "start": "2026-02-03T09:00:00", "end": "2026-02-03T09:15:00"},
+        ]},
+    ))
+    db_session.add(Cache(
+        source=f"ics_calendar_{ics_id}",
+        data={"events": [
+            {"title": "ICS Event", "start": "2026-02-03T09:30:00", "end": "2026-02-03T10:00:00"},
+        ]},
+    ))
+    db_session.commit()
+
+    response = authed_client.get("/api/display")
+    assert response.status_code == 200
+    widget = response.json()["widgets"][0]
+    assert widget["widget_type"] == "calendar"
+    events = widget["data"]["events"]
+    # Events should be merged and sorted by start time
+    assert len(events) == 3
+    assert events[0]["title"] == "Google Standup"
+    assert events[1]["title"] == "ICS Event"
+    assert events[2]["title"] == "Google Meeting"
+
+
+def test_display_applies_color_mapping(authed_client, db_session):
+    """Widget config has colors dict, events get correct colors applied."""
+    from server.app.models import Cache, IcsCalendar
+
+    ics_cal = IcsCalendar(name="Personal", url="https://example.com/personal.ics", color="#00ff00")
+    db_session.add(ics_cal)
+    db_session.commit()
+    ics_id = ics_cal.id
+
+    resp = authed_client.post("/api/layouts", json={"name": "Color Test"})
+    layout_id = resp.json()["id"]
+    authed_client.post(f"/api/layouts/{layout_id}/activate")
+    authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
+        "widget_type": "calendar",
+        "config": {
+            "calendar_sources": [
+                {"type": "google", "id": "primary"},
+                {"type": "ics", "id": ics_id},
+            ],
+            "days_ahead": 7,
+            "colors": {"google:primary": "#3b82f6", "ics:" + str(ics_id): "#ef4444"},
+        },
+        "position_x": 0, "position_y": 0, "width": 6, "height": 4,
+    })
+
+    db_session.add(Cache(
+        source="google_calendar_primary_7",
+        data={"events": [
+            {"title": "Team Sync", "start": "2026-02-03T14:00:00", "end": "2026-02-03T15:00:00"},
+        ]},
+    ))
+    db_session.add(Cache(
+        source=f"ics_calendar_{ics_id}",
+        data={"events": [
+            {"title": "Yoga", "start": "2026-02-03T07:00:00", "end": "2026-02-03T08:00:00"},
+        ]},
+    ))
+    db_session.commit()
+
+    response = authed_client.get("/api/display")
+    widget = response.json()["widgets"][0]
+    events = widget["data"]["events"]
+    # Find events and check colors
+    yoga = next(e for e in events if e["title"] == "Yoga")
+    team_sync = next(e for e in events if e["title"] == "Team Sync")
+    assert yoga["color"] == "#ef4444"
+    assert team_sync["color"] == "#3b82f6"
+
+
+def test_display_backward_compat_calendar_ids(authed_client, db_session):
+    """Old config format with calendar_ids still works."""
+    from server.app.models import Cache
+
+    resp = authed_client.post("/api/layouts", json={"name": "Compat Test"})
+    layout_id = resp.json()["id"]
+    authed_client.post(f"/api/layouts/{layout_id}/activate")
+    authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
+        "widget_type": "calendar",
+        "config": {"calendar_ids": ["primary", "work"], "days_ahead": 14},
+        "position_x": 0, "position_y": 0, "width": 6, "height": 4,
+    })
+
+    db_session.add(Cache(
+        source="google_calendar_primary_work_14",
+        data={"events": [
+            {"title": "Old Format Event", "start": "2026-02-03T12:00:00", "end": "2026-02-03T13:00:00"},
+        ]},
+    ))
+    db_session.commit()
+
+    response = authed_client.get("/api/display")
+    assert response.status_code == 200
+    widget = response.json()["widgets"][0]
+    assert widget["data"]["events"][0]["title"] == "Old Format Event"
+
+
+def test_display_partial_cache(authed_client, db_session):
+    """Only some sources cached, available events still returned."""
+    from server.app.models import Cache, IcsCalendar
+
+    ics_cal = IcsCalendar(name="Shared", url="https://example.com/shared.ics", color="#9333ea")
+    db_session.add(ics_cal)
+    db_session.commit()
+    ics_id = ics_cal.id
+
+    resp = authed_client.post("/api/layouts", json={"name": "Partial Cache"})
+    layout_id = resp.json()["id"]
+    authed_client.post(f"/api/layouts/{layout_id}/activate")
+    authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
+        "widget_type": "calendar",
+        "config": {
+            "calendar_sources": [
+                {"type": "google", "id": "primary"},
+                {"type": "ics", "id": ics_id},
+            ],
+            "days_ahead": 7,
+            "colors": {},
+        },
+        "position_x": 0, "position_y": 0, "width": 6, "height": 4,
+    })
+
+    # Only ICS cache exists, no Google cache
+    db_session.add(Cache(
+        source=f"ics_calendar_{ics_id}",
+        data={"events": [
+            {"title": "ICS Only", "start": "2026-02-03T10:00:00", "end": "2026-02-03T11:00:00"},
+        ]},
+    ))
+    db_session.commit()
+
+    response = authed_client.get("/api/display")
+    assert response.status_code == 200
+    widget = response.json()["widgets"][0]
+    events = widget["data"]["events"]
+    assert len(events) == 1
+    assert events[0]["title"] == "ICS Only"
