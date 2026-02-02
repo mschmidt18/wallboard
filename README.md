@@ -55,7 +55,7 @@ cd frontend && npm run lint
 The install script sets up everything on a Debian-based system (Raspberry Pi OS, Debian 12+, Ubuntu):
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/OWNER/wallboard/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/mschmidt18/wallboard/main/install.sh | sudo bash
 ```
 
 This will:

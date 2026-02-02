@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Wallboard Installer
-# One-line install: curl -sSL https://raw.githubusercontent.com/OWNER/wallboard/main/install.sh | bash
+# One-line install: curl -sSL https://raw.githubusercontent.com/mschmidt18/wallboard/main/install.sh | bash
 #
 # Installs the Wallboard digital dashboard on Debian-based systems (Raspberry Pi OS, Debian 12+, Ubuntu).
 # Must be run as root.
@@ -12,7 +12,7 @@
 
 set -e
 
-REPO_URL="https://github.com/OWNER/wallboard.git"
+REPO_URL="https://github.com/mschmidt18/wallboard.git"
 INSTALL_DIR="/opt/wallboard"
 CONFIG_DIR="/etc/wallboard"
 LOG_DIR="/var/log/wallboard"
