@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../shared/api";
-import type { Integration } from "../shared/types";
+import type { IcsCalendar, Integration } from "../shared/types";
 
 export default function Integrations() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
@@ -10,6 +10,13 @@ export default function Integrations() {
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // ICS calendar state
+  const [icsCalendars, setIcsCalendars] = useState<IcsCalendar[]>([]);
+  const [showIcsForm, setShowIcsForm] = useState(false);
+  const [icsForm, setIcsForm] = useState({ name: "", url: "", color: "#6366f1" });
+  const [icsSaving, setIcsSaving] = useState(false);
+  const [editingIcsId, setEditingIcsId] = useState<number | null>(null);
 
   const justConnected = searchParams.get("connected") === "true";
 
@@ -25,9 +32,19 @@ export default function Integrations() {
     }
   }, []);
 
+  const fetchIcsCalendars = useCallback(async () => {
+    try {
+      const data = await api.getIcsCalendars();
+      setIcsCalendars(data);
+    } catch {
+      // Silently fail — ICS section will just be empty
+    }
+  }, []);
+
   useEffect(() => {
     fetchIntegrations();
-  }, [fetchIntegrations]);
+    fetchIcsCalendars();
+  }, [fetchIntegrations, fetchIcsCalendars]);
 
   // Clear the ?connected=true param after showing success
   useEffect(() => {
@@ -70,6 +87,50 @@ export default function Integrations() {
     } finally {
       setDisconnecting(false);
     }
+  }
+
+  async function handleIcsSave() {
+    if (!icsForm.name.trim() || !icsForm.url.trim()) return;
+    setIcsSaving(true);
+    setError(null);
+    try {
+      if (editingIcsId !== null) {
+        await api.updateIcsCalendar(editingIcsId, icsForm);
+      } else {
+        await api.createIcsCalendar(icsForm);
+      }
+      setIcsForm({ name: "", url: "", color: "#6366f1" });
+      setShowIcsForm(false);
+      setEditingIcsId(null);
+      await fetchIcsCalendars();
+    } catch {
+      setError(editingIcsId !== null ? "Failed to update ICS calendar." : "Failed to add ICS calendar.");
+    } finally {
+      setIcsSaving(false);
+    }
+  }
+
+  function handleIcsEdit(cal: IcsCalendar) {
+    setEditingIcsId(cal.id);
+    setIcsForm({ name: cal.name, url: cal.url, color: cal.color });
+    setShowIcsForm(true);
+  }
+
+  async function handleIcsDelete(cal: IcsCalendar) {
+    if (!confirm(`Delete ICS calendar "${cal.name}"?`)) return;
+    setError(null);
+    try {
+      await api.deleteIcsCalendar(cal.id);
+      await fetchIcsCalendars();
+    } catch {
+      setError("Failed to delete ICS calendar.");
+    }
+  }
+
+  function handleIcsCancel() {
+    setShowIcsForm(false);
+    setEditingIcsId(null);
+    setIcsForm({ name: "", url: "", color: "#6366f1" });
   }
 
   if (loading) {
@@ -247,6 +308,140 @@ export default function Integrations() {
             </li>
           </ol>
         </div>
+      </div>
+
+      {/* ICS Calendars Section */}
+      <div className="mt-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">ICS Calendars</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Add external calendars via ICS feed URLs.
+            </p>
+          </div>
+          {!showIcsForm && (
+            <button
+              onClick={() => setShowIcsForm(true)}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+            >
+              Add ICS Calendar
+            </button>
+          )}
+        </div>
+
+        {/* Add/Edit Form */}
+        {showIcsForm && (
+          <div className="mt-4 rounded-lg border border-gray-200 bg-white shadow-sm p-6">
+            <h3 className="text-base font-semibold text-gray-900">
+              {editingIcsId !== null ? "Edit ICS Calendar" : "Add ICS Calendar"}
+            </h3>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="ics-name" className="block text-sm font-medium text-gray-700">
+                  Name
+                </label>
+                <input
+                  id="ics-name"
+                  type="text"
+                  value={icsForm.name}
+                  onChange={(e) => setIcsForm({ ...icsForm, name: e.target.value })}
+                  placeholder="Work Calendar"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="ics-url" className="block text-sm font-medium text-gray-700">
+                  URL
+                </label>
+                <input
+                  id="ics-url"
+                  type="url"
+                  value={icsForm.url}
+                  onChange={(e) => setIcsForm({ ...icsForm, url: e.target.value })}
+                  placeholder="https://example.com/calendar.ics"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="ics-color" className="block text-sm font-medium text-gray-700">
+                  Color
+                </label>
+                <div className="mt-1 flex items-center gap-3">
+                  <input
+                    id="ics-color"
+                    type="color"
+                    value={icsForm.color}
+                    onChange={(e) => setIcsForm({ ...icsForm, color: e.target.value })}
+                    className="h-9 w-12 cursor-pointer rounded border border-gray-300"
+                  />
+                  <span className="text-sm text-gray-500 font-mono">{icsForm.color}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={handleIcsSave}
+                  disabled={icsSaving || !icsForm.name.trim() || !icsForm.url.trim()}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {icsSaving ? "Saving..." : editingIcsId !== null ? "Update" : "Add"}
+                </button>
+                <button
+                  onClick={handleIcsCancel}
+                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ICS Calendar List */}
+        {icsCalendars.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            {icsCalendars.map((cal) => (
+              <div
+                key={cal.id}
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className="h-4 w-4 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: cal.color }}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{cal.name}</p>
+                    <p className="text-xs text-gray-500 truncate max-w-md" title={cal.url}>
+                      {cal.url}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                  <button
+                    onClick={() => handleIcsEdit(cal)}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleIcsDelete(cal)}
+                    className="rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          !showIcsForm && (
+            <div className="mt-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+              <p className="text-sm text-gray-500">
+                No ICS calendars configured. Add one to display external calendar events on your dashboard.
+              </p>
+            </div>
+          )
+        )}
       </div>
     </div>
   );
