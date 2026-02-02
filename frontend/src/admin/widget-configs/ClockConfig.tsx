@@ -36,21 +36,21 @@ interface Props {
 
 export default function ClockConfig({ config, onChange }: Props) {
   const [timezone, setTimezone] = useState<string>(config.timezone ?? "");
-  const [use24h, setUse24h] = useState<boolean>(config.use_24h ?? false);
+  const [format24h, setFormat24h] = useState<boolean>(config.format_24h ?? false);
 
   useEffect(() => {
     setTimezone(config.timezone ?? "");
-    setUse24h(config.use_24h ?? false);
+    setFormat24h(config.format_24h ?? false);
   }, [config]);
 
-  function handleChange(updates: Partial<{ timezone: string; use_24h: boolean }>) {
+  function handleChange(updates: Partial<{ timezone: string; format_24h: boolean }>) {
     const next = {
       ...config,
       timezone: updates.timezone ?? timezone,
-      use_24h: updates.use_24h ?? use24h,
+      format_24h: updates.format_24h ?? format24h,
     };
     if (updates.timezone !== undefined) setTimezone(updates.timezone);
-    if (updates.use_24h !== undefined) setUse24h(updates.use_24h);
+    if (updates.format_24h !== undefined) setFormat24h(updates.format_24h);
     onChange(next);
   }
 
@@ -79,8 +79,8 @@ export default function ClockConfig({ config, onChange }: Props) {
         <input
           id="clock-24h"
           type="checkbox"
-          checked={use24h}
-          onChange={(e) => handleChange({ use_24h: e.target.checked })}
+          checked={format24h}
+          onChange={(e) => handleChange({ format_24h: e.target.checked })}
           className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
         />
         <label htmlFor="clock-24h" className="text-sm font-medium text-gray-700">

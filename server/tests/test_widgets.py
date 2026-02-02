@@ -128,6 +128,25 @@ def test_photos_widget_config_uses_interval_seconds(client, layout_id):
     assert "interval" not in config, "Config should NOT contain bare 'interval' key"
 
 
+def test_clock_widget_config_uses_format_24h(client, layout_id):
+    """Clock widget config must use 'format_24h' (not 'use_24h').
+
+    The dashboard ClockWidget reads config.format_24h. The admin
+    ClockConfig must emit format_24h so the 24-hour toggle actually
+    takes effect.
+    """
+    response = client.post(f"/api/layouts/{layout_id}/widgets", json={
+        "widget_type": "clock",
+        "config": {"timezone": "America/New_York", "format_24h": True},
+        "position_x": 0, "position_y": 0, "width": 3, "height": 2,
+    })
+    assert response.status_code == 201
+    config = response.json()["config"]
+    assert "format_24h" in config, "Config should use 'format_24h', not 'use_24h'"
+    assert config["format_24h"] is True
+    assert "use_24h" not in config, "Config should NOT contain 'use_24h' key"
+
+
 @patch("server.app.routers.widgets.geocode_zip", new_callable=AsyncMock,
        side_effect=GeocodingError("No location found for zip code: 00000"))
 def test_add_weather_widget_invalid_zip_returns_400(mock_geocode, client, layout_id):

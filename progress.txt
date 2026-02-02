@@ -1,0 +1,13 @@
+Issue #1 - Photos config key mismatch: `interval` vs `interval_seconds` - DONE (commit 31ced8c)
+  - Fixed PhotosConfig.tsx to emit `interval_seconds` instead of `interval`
+  - Renamed local state from `interval`/`setInterval_` to `intervalSeconds`/`setIntervalSeconds`
+  - Updated emitChange type and body to use `interval_seconds`
+  - Added backend contract test `test_photos_widget_config_uses_interval_seconds`
+  - All 67 backend tests pass
+
+Issue #2 - Clock config key mismatch: `use_24h` vs `format_24h` - DONE
+  - Fixed ClockConfig.tsx to emit `format_24h` instead of `use_24h`
+  - Renamed local state from `use24h`/`setUse24h` to `format24h`/`setFormat24h`
+  - Updated handleChange type and body to use `format_24h`
+  - Added backend contract test `test_clock_widget_config_uses_format_24h`
+  - All 68 backend tests pass
