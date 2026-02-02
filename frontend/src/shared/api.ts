@@ -55,4 +55,6 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
   getSettings: () => request<any>("/settings"),
+  logout: () =>
+    request<any>("/auth/logout", { method: "POST" }),
 };
