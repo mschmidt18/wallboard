@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 from pathlib import Path
@@ -9,6 +10,8 @@ from pydantic import BaseModel
 
 from server.app.auth import hash_password, verify_password, create_session_token
 from server.app.config import Config
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["auth", "settings"])
 
@@ -93,10 +96,12 @@ def auth_login(body: PasswordBody, response: Response):
     settings = _load_settings()
     pw_hash = settings.get("admin_password_hash", "")
     if not pw_hash or not verify_password(body.password, pw_hash):
+        logger.warning("Admin login failed")
         raise HTTPException(status_code=401, detail="Invalid password")
     token = create_session_token()
     _sessions[token] = time.time() + SESSION_TTL
     response.set_cookie(key="session", value=token, httponly=True)
+    logger.info("Admin login successful")
     return {"status": "ok"}
 
 

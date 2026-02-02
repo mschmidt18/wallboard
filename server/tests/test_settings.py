@@ -120,3 +120,23 @@ def test_logout_invalidates_session(client, tmp_config):
     client.post("/api/auth/logout")
     # Session should be invalidated
     assert client.get("/api/settings").status_code == 401
+
+
+def test_successful_login_is_logged(client, tmp_config, caplog):
+    """Successful admin login attempts should be logged."""
+    import logging
+
+    client.post("/api/auth/setup", json={"password": "admin123"})
+    with caplog.at_level(logging.INFO):
+        client.post("/api/auth/login", json={"password": "admin123"})
+    assert any("login successful" in r.message.lower() for r in caplog.records)
+
+
+def test_failed_login_is_logged(client, tmp_config, caplog):
+    """Failed admin login attempts should be logged as warnings."""
+    import logging
+
+    client.post("/api/auth/setup", json={"password": "admin123"})
+    with caplog.at_level(logging.WARNING):
+        client.post("/api/auth/login", json={"password": "wrong"})
+    assert any("login failed" in r.message.lower() for r in caplog.records)
