@@ -1,6 +1,8 @@
 import json
 import stat
 from pathlib import Path
+import pytest
+from cryptography.fernet import InvalidToken
 from server.app.services.encryption import generate_key, encrypt, decrypt, load_or_create_key
 
 
@@ -17,11 +19,8 @@ def test_different_keys_cannot_decrypt(tmp_path):
     key1 = generate_key()
     key2 = generate_key()
     encrypted = encrypt("secret", key1)
-    try:
-        result = decrypt(encrypted, key2)
-        assert result != "secret"
-    except Exception:
-        pass  # Expected: decryption fails with wrong key
+    with pytest.raises(InvalidToken):
+        decrypt(encrypted, key2)
 
 
 def test_load_or_create_key_creates_file(tmp_path):

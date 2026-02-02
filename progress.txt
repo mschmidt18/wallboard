@@ -167,3 +167,15 @@ Issue #23 - `_resolve_weather_zip` mutates Pydantic model's config dict in-place
   - Now returns a new merged dict without modifying the original, eliminating the mutation side-effect
   - Added test `test_resolve_weather_zip_does_not_mutate_input_config` that calls the function directly and asserts the original dict is unchanged
   - All 108 backend tests pass
+
+Issue #24 - `test_db_session_injected` doesn't test what it claims - DONE (commit 35d31d9)
+  - Changed test to use `authed_client` (layouts endpoint requires auth) and `GET /api/layouts` instead of `GET /api/health`
+  - Test now inserts a layout via `db_session`, then verifies it appears in the API response via the client
+  - Previously the test only hit `/api/health` which never queries the DB, so it passed even if sessions weren't shared
+  - All 108 backend tests pass
+
+Issue #25 - Encryption test silently swallows all exceptions - DONE
+  - Replaced `try/except Exception: pass` with `pytest.raises(InvalidToken)` in `test_different_keys_cannot_decrypt`
+  - Now imports `InvalidToken` from `cryptography.fernet` and asserts the specific exception type
+  - Previously the test passed no matter what happened (including if decrypt succeeded with wrong key)
+  - All 108 backend tests pass
