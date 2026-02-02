@@ -5,6 +5,7 @@ import Layouts from "./admin/Layouts";
 import LayoutEditor from "./admin/LayoutEditor";
 import Integrations from "./admin/Integrations";
 import Settings from "./admin/Settings";
+import About from "./admin/About";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="layouts/:id" element={<LayoutEditor />} />
           <Route path="integrations" element={<Integrations />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="about" element={<About />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
       </Routes>
