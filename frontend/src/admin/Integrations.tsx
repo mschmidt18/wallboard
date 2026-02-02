@@ -18,7 +18,7 @@ export default function Integrations() {
       setError(null);
       const data = await api.getIntegrations();
       setIntegrations(data);
-    } catch (err) {
+    } catch {
       setError("Failed to load integrations.");
     } finally {
       setLoading(false);
@@ -48,7 +48,7 @@ export default function Integrations() {
     try {
       const { auth_url } = await api.connectGoogle();
       window.location.href = auth_url;
-    } catch (err) {
+    } catch {
       setError(
         "Failed to start Google connection. Make sure Google Client ID and Secret are configured in Settings."
       );
@@ -65,7 +65,7 @@ export default function Integrations() {
     try {
       await api.disconnectGoogle();
       await fetchIntegrations();
-    } catch (err) {
+    } catch {
       setError("Failed to disconnect Google integration.");
     } finally {
       setDisconnecting(false);
