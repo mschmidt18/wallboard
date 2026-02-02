@@ -202,6 +202,33 @@ def test_collect_mixed_sources(refresh_db):
     assert ics_sources[0]["key"] == f"ics_calendar_{ics_id}"
 
 
+def test_auto_include_ics_when_no_calendar_sources(refresh_db):
+    """A calendar widget with empty config should auto-include all ICS calendars."""
+    with refresh_db() as session:
+        layout = Layout(name="Test", columns=12, row_height=80, is_active=True, theme={})
+        session.add(layout)
+        session.commit()
+        ics1 = IcsCalendar(name="School", url="https://school.example.com/cal.ics", color="#ff0000")
+        ics2 = IcsCalendar(name="Sports", url="https://sports.example.com/cal.ics", color="#00ff00")
+        session.add_all([ics1, ics2])
+        session.commit()
+        ics1_id, ics2_id = ics1.id, ics2.id
+        widget = Widget(layout_id=layout.id, widget_type="calendar",
+            config={},
+            position_x=0, position_y=0, width=4, height=3)
+        session.add(widget)
+        session.commit()
+
+    with refresh_db() as session:
+        sources = _collect_data_sources(session)
+
+    ics_sources = [s for s in sources if s["type"] == "ics_calendar"]
+    assert len(ics_sources) == 2
+    ics_keys = {s["key"] for s in ics_sources}
+    assert f"ics_calendar_{ics1_id}" in ics_keys
+    assert f"ics_calendar_{ics2_id}" in ics_keys
+
+
 def test_backward_compat_calendar_ids(refresh_db):
     """A widget with old calendar_ids config (no calendar_sources) should still
     be treated as Google calendar sources."""
@@ -221,6 +248,32 @@ def test_backward_compat_calendar_ids(refresh_db):
     calendar_sources = [s for s in sources if s["type"] == "calendar"]
     assert len(calendar_sources) == 1
     assert sorted(calendar_sources[0]["params"]["calendar_ids"]) == ["primary", "work@gmail.com"]
+
+
+def test_backward_compat_calendar_ids_also_includes_ics(refresh_db):
+    """A widget with old calendar_ids config should also auto-include ICS calendars."""
+    with refresh_db() as session:
+        layout = Layout(name="Test", columns=12, row_height=80, is_active=True, theme={})
+        session.add(layout)
+        session.commit()
+        ics_cal = IcsCalendar(name="School", url="https://school.example.com/cal.ics", color="#ff0000")
+        session.add(ics_cal)
+        session.commit()
+        ics_id = ics_cal.id
+        widget = Widget(layout_id=layout.id, widget_type="calendar",
+            config={"calendar_ids": ["primary"], "days_ahead": 7},
+            position_x=0, position_y=0, width=4, height=3)
+        session.add(widget)
+        session.commit()
+
+    with refresh_db() as session:
+        sources = _collect_data_sources(session)
+
+    google_sources = [s for s in sources if s["type"] == "calendar"]
+    ics_sources = [s for s in sources if s["type"] == "ics_calendar"]
+    assert len(google_sources) == 1
+    assert len(ics_sources) == 1
+    assert ics_sources[0]["key"] == f"ics_calendar_{ics_id}"
 
 
 @pytest.mark.asyncio

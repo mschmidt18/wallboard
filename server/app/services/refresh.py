@@ -70,6 +70,20 @@ def _collect_data_sources(session: Session) -> list[dict]:
                 if key not in sources:
                     sources[key] = {"type": "calendar", "key": key, "params": config,
                         "interval": DEFAULT_INTERVALS["google_calendar"]}
+                # Auto-include all ICS calendars when no explicit calendar_sources
+                for ics_cal in session.query(IcsCalendar).all():
+                    ics_key = f"ics_calendar_{ics_cal.id}"
+                    if ics_key not in sources:
+                        sources[ics_key] = {
+                            "type": "ics_calendar", "key": ics_key,
+                            "params": {
+                                "url": ics_cal.url,
+                                "days_ahead": days_ahead,
+                                "calendar_name": ics_cal.name,
+                                "color": ics_cal.color,
+                            },
+                            "interval": DEFAULT_INTERVALS["ics_calendar"],
+                        }
         elif widget.widget_type == "photos":
             album_id = config.get("album_id")
             if album_id:

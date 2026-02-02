@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from server.app.config import Config
 from server.app.database import get_db
-from server.app.models import Layout, Cache
+from server.app.models import Layout, Cache, IcsCalendar
 from server.app.schemas import DisplayResponse, DisplayWidgetResponse
 
 router = APIRouter(tags=["display"])
@@ -78,9 +78,8 @@ def _get_calendar_cache_keys(config: dict) -> list[tuple[str, str]]:
     return keys
 
 
-def _merge_calendar_data(widget, cache_entries: dict) -> dict | None:
+def _merge_calendar_data(config: dict, cache_entries: dict) -> dict | None:
     """Merge events from multiple calendar sources, apply colors, sort by start."""
-    config = widget.config or {}
     calendar_sources = config.get("calendar_sources", [])
     if not calendar_sources:
         return None
@@ -132,18 +131,31 @@ def get_display(db: Session = Depends(get_db)):
     if not layout:
         raise HTTPException(status_code=404, detail="No active layout")
 
+    # Query all ICS calendars for auto-inclusion in unconfigured calendar widgets
+    all_ics = db.query(IcsCalendar).all()
+
     # Compute needed cache keys from the active layout's widgets, then query only those
     cache_keys = {}
-    multi_source_widgets = set()
+    multi_source_configs = {}  # widget_id -> effective config with resolved sources
     all_needed_keys = set()
 
     for widget in layout.widgets:
         config = widget.config or {}
-        if widget.widget_type == "calendar" and config.get("calendar_sources"):
-            multi_source_widgets.add(widget.id)
-            cal_keys = _get_calendar_cache_keys(config)
-            for _label, cache_key in cal_keys:
-                all_needed_keys.add(cache_key)
+        if widget.widget_type == "calendar":
+            effective_config = dict(config)
+            # Auto-include all ICS calendars when no explicit sources configured
+            if not effective_config.get("calendar_sources") and not effective_config.get("calendar_ids") and all_ics:
+                effective_config["calendar_sources"] = [{"type": "ics", "id": ic.id} for ic in all_ics]
+            if effective_config.get("calendar_sources"):
+                multi_source_configs[widget.id] = effective_config
+                cal_keys = _get_calendar_cache_keys(effective_config)
+                for _label, cache_key in cal_keys:
+                    all_needed_keys.add(cache_key)
+            else:
+                key = _get_cache_key(widget)
+                if key:
+                    cache_keys[widget.id] = key
+                    all_needed_keys.add(key)
         else:
             key = _get_cache_key(widget)
             if key:
@@ -157,8 +169,8 @@ def get_display(db: Session = Depends(get_db)):
 
     widgets = []
     for widget in layout.widgets:
-        if widget.id in multi_source_widgets:
-            data = _merge_calendar_data(widget, cache_entries)
+        if widget.id in multi_source_configs:
+            data = _merge_calendar_data(multi_source_configs[widget.id], cache_entries)
         else:
             cache_key = cache_keys.get(widget.id)
             data = cache_entries.get(cache_key) if cache_key else None

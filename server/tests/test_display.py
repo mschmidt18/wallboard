@@ -314,3 +314,38 @@ def test_display_partial_cache(authed_client, db_session):
     events = widget["data"]["events"]
     assert len(events) == 1
     assert events[0]["title"] == "ICS Only"
+
+
+def test_display_auto_includes_ics_for_unconfigured_widget(authed_client, db_session):
+    """A calendar widget with empty config should auto-include all ICS calendars."""
+    from server.app.models import Cache, IcsCalendar
+
+    ics_cal = IcsCalendar(name="School", url="https://school.example.com/cal.ics", color="#3b82f6")
+    db_session.add(ics_cal)
+    db_session.commit()
+    ics_id = ics_cal.id
+
+    resp = authed_client.post("/api/layouts", json={"name": "Auto ICS"})
+    layout_id = resp.json()["id"]
+    authed_client.post(f"/api/layouts/{layout_id}/activate")
+    authed_client.post(f"/api/layouts/{layout_id}/widgets", json={
+        "widget_type": "calendar",
+        "config": {},
+        "position_x": 0, "position_y": 0, "width": 6, "height": 4,
+    })
+
+    db_session.add(Cache(
+        source=f"ics_calendar_{ics_id}",
+        data={"events": [
+            {"title": "School Event", "start": "2026-02-03T08:00:00", "end": "2026-02-03T09:00:00"},
+        ]},
+    ))
+    db_session.commit()
+
+    response = authed_client.get("/api/display")
+    assert response.status_code == 200
+    widget = response.json()["widgets"][0]
+    assert widget["data"] is not None
+    events = widget["data"]["events"]
+    assert len(events) == 1
+    assert events[0]["title"] == "School Event"
