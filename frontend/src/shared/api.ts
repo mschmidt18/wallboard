@@ -1,4 +1,17 @@
-import type { DisplayResponse, GoogleConnectResponse, Integration, Layout, LayoutListItem, Widget } from "./types";
+import type {
+  DisplayResponse,
+  GoogleConnectResponse,
+  Integration,
+  Layout,
+  LayoutCreate,
+  LayoutListItem,
+  LayoutUpdate,
+  Settings,
+  Widget,
+  WidgetCreate,
+  WidgetPositionUpdate,
+  WidgetUpdate,
+} from "./types";
 
 const BASE = "/api";
 
@@ -13,7 +26,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       const body = await response.json();
       if (body.detail) {
         message = Array.isArray(body.detail)
-          ? body.detail.map((e: any) => e.msg).join("; ")
+          ? body.detail.map((e: { msg: string }) => e.msg).join("; ")
           : body.detail;
       }
     } catch {
@@ -29,12 +42,12 @@ export const api = {
   getDisplay: () => request<DisplayResponse>("/display"),
   getLayouts: () => request<LayoutListItem[]>("/layouts"),
   getLayout: (id: number) => request<Layout>(`/layouts/${id}`),
-  createLayout: (data: any) =>
+  createLayout: (data: LayoutCreate) =>
     request<Layout>("/layouts", {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  updateLayout: (id: number, data: any) =>
+  updateLayout: (id: number, data: LayoutUpdate) =>
     request<Layout>(`/layouts/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -43,19 +56,19 @@ export const api = {
     request<void>(`/layouts/${id}`, { method: "DELETE" }),
   activateLayout: (id: number) =>
     request<Layout>(`/layouts/${id}/activate`, { method: "POST" }),
-  addWidget: (layoutId: number, data: any) =>
+  addWidget: (layoutId: number, data: WidgetCreate) =>
     request<Widget>(`/layouts/${layoutId}/widgets`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  updateWidget: (id: number, data: any) =>
+  updateWidget: (id: number, data: WidgetUpdate) =>
     request<Widget>(`/widgets/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
   deleteWidget: (id: number) =>
     request<void>(`/widgets/${id}`, { method: "DELETE" }),
-  updatePositions: (layoutId: number, positions: any[]) =>
+  updatePositions: (layoutId: number, positions: WidgetPositionUpdate[]) =>
     request<Widget[]>(`/layouts/${layoutId}/widgets/positions`, {
       method: "PUT",
       body: JSON.stringify(positions),
@@ -63,23 +76,23 @@ export const api = {
   getAuthStatus: () =>
     request<{ setup_required: boolean }>("/auth/status"),
   setup: (password: string) =>
-    request<any>("/auth/setup", {
+    request<void>("/auth/setup", {
       method: "POST",
       body: JSON.stringify({ password }),
     }),
   login: (password: string) =>
-    request<any>("/auth/login", {
+    request<void>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ password }),
     }),
-  getSettings: () => request<any>("/settings"),
-  updateSettings: (data: Record<string, unknown>) =>
-    request<any>("/settings", {
+  getSettings: () => request<Settings>("/settings"),
+  updateSettings: (data: Settings) =>
+    request<Settings>("/settings", {
       method: "PUT",
       body: JSON.stringify(data),
     }),
   changePassword: (currentPassword: string, newPassword: string) =>
-    request<any>("/auth/change-password", {
+    request<void>("/auth/change-password", {
       method: "POST",
       body: JSON.stringify({
         current_password: currentPassword,
@@ -87,7 +100,7 @@ export const api = {
       }),
     }),
   logout: () =>
-    request<any>("/auth/logout", { method: "POST" }),
+    request<void>("/auth/logout", { method: "POST" }),
   getIntegrations: () => request<Integration[]>("/integrations"),
   connectGoogle: () =>
     request<GoogleConnectResponse>("/integrations/google/connect", {

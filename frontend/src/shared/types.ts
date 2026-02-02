@@ -56,3 +56,51 @@ export interface DisplayResponse {
   widgets: Widget[];
   refresh_interval: number;
 }
+
+// --- API input types ---
+
+export interface LayoutCreate {
+  name: string;
+  columns?: number;
+  row_height?: number;
+  theme?: ThemeValues;
+}
+
+export interface LayoutUpdate {
+  name?: string;
+  columns?: number;
+  row_height?: number;
+  theme?: ThemeValues;
+}
+
+export interface WidgetCreate {
+  widget_type: WidgetType;
+  config: Record<string, unknown>;
+  position_x: number;
+  position_y: number;
+  width: number;
+  height: number;
+}
+
+export interface WidgetUpdate {
+  config?: Record<string, unknown>;
+  position_x?: number;
+  position_y?: number;
+  width?: number;
+  height?: number;
+}
+
+export interface WidgetPositionUpdate {
+  id: number;
+  position_x: number;
+  position_y: number;
+  width: number;
+  height: number;
+}
+
+export interface Settings {
+  google_client_id: string;
+  google_client_secret: string;
+  display_refresh_interval: number;
+  log_level: string;
+}
