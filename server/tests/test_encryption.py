@@ -1,4 +1,5 @@
 import json
+import stat
 from pathlib import Path
 from server.app.services.encryption import generate_key, encrypt, decrypt, load_or_create_key
 
@@ -35,3 +36,11 @@ def test_load_or_create_key_returns_same_key(tmp_path):
     key1 = load_or_create_key(key_path)
     key2 = load_or_create_key(key_path)
     assert key1 == key2
+
+
+def test_load_or_create_key_sets_restrictive_permissions(tmp_path):
+    key_path = tmp_path / "secret.key"
+    load_or_create_key(key_path)
+    file_mode = key_path.stat().st_mode
+    # Only owner read/write (0600)
+    assert file_mode & 0o777 == stat.S_IRUSR | stat.S_IWUSR

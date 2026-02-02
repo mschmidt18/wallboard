@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from cryptography.fernet import Fernet
 
@@ -12,6 +13,7 @@ def load_or_create_key(path: Path) -> bytes:
     path.parent.mkdir(parents=True, exist_ok=True)
     key = generate_key()
     path.write_bytes(key)
+    os.chmod(path, 0o600)
     return key
 
 
