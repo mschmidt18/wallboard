@@ -29,3 +29,11 @@ Issue #4 - Calendar widget deduplication silently drops differing configs - DONE
   - Updated `_get_cache_key` in `display.py` to match the new key format
   - Added test `test_collect_data_sources_calendar_different_configs` verifying two calendar widgets with different configs produce separate data source entries
   - All 74 backend tests pass
+
+Issue #5 - Google Photos/Albums API pagination not handled - DONE
+  - Added pagination loop in `fetch_albums` to follow `nextPageToken` via query params
+  - Added pagination loop in `fetch_album_photos` to follow `nextPageToken` via request body
+  - Both functions now accumulate results across all pages before returning
+  - Added test `test_fetch_albums_paginates` verifying two pages of albums are combined
+  - Added test `test_fetch_album_photos_paginates` verifying two pages of photos are combined
+  - All 76 backend tests pass
