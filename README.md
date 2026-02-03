@@ -1,53 +1,46 @@
 # Wallboard
 
-A self-hosted digital dashboard for wall-mounted displays. Designed for Raspberry Pi but runs anywhere with Python 3.11+ and Node.js.
+A self-hosted digital dashboard for wall-mounted displays. Designed for Raspberry Pi but runs anywhere with Node.js 20+.
 
 Configurable widgets include weather, Google Calendar, Google Photos, clock, and notes. An admin interface lets you create layouts, drag-and-drop widgets onto a grid, connect integrations, and customize themes. The dashboard runs full-screen in a browser and auto-refreshes with cached data.
 
 ## Architecture
 
-- **Backend:** FastAPI (Python) with SQLAlchemy ORM and SQLite
+- **Backend:** Fastify (Node.js/TypeScript) with raw SQL and SQLite (better-sqlite3)
 - **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS
 - **Display:** Chromium in kiosk mode (Raspberry Pi) or any browser
 - **Data:** Background refresh loop caches external data (weather via Open-Meteo, Google Calendar/Photos via OAuth)
 
-In production, FastAPI serves the built React frontend as static files. In development, Vite proxies API requests to the backend.
+Single TypeScript package with unified build. In development, Vite runs as middleware inside Fastify for single-port HMR. In production, Fastify serves the built React frontend as static files.
 
 ## Quick Start (Development)
 
 ### Prerequisites
 
-- Python 3.11+
 - Node.js 20+
 
-### Backend
+### Install and Run
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r server/requirements.txt
-
-# Run the server
-PYTHONPATH=. .venv/bin/uvicorn server.app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Frontend
-
-```bash
-cd frontend
 npm install
 npm run dev
 ```
 
-The Vite dev server starts on `http://localhost:5173` and proxies `/api` requests to the backend at `http://localhost:8000`.
+The server starts on `http://localhost:8000` with both API and frontend (HMR enabled).
 
 ### Run Tests
 
 ```bash
-# Backend tests
-PYTHONPATH=. .venv/bin/pytest server/tests/ -v
+npm test                  # Watch mode
+npm run test:coverage     # With 95% coverage thresholds
+npm run lint              # ESLint
+```
 
-# Frontend lint
-cd frontend && npm run lint
+### Build for Production
+
+```bash
+npm run build    # Compiles server (tsc) + frontend (vite)
+npm start        # Runs production server
 ```
 
 ## Installation
@@ -60,14 +53,13 @@ curl -sSL https://raw.githubusercontent.com/mschmidt18/wallboard/main/install.sh
 
 This will:
 
-1. Install system dependencies (Python 3, Node.js 20, Chromium, X server)
+1. Install system dependencies (Node.js 20, Chromium, X server)
 2. Create a `wallboard` system user
 3. Clone the repository to `/opt/wallboard`
-4. Set up a Python virtual environment and install dependencies
-5. Build the React frontend
-6. Generate a device-specific encryption key for credential storage
-7. Install and start systemd services
-8. Configure log rotation
+4. Run `npm install` and `npm run build`
+5. Generate a device-specific encryption key for credential storage
+6. Install and start systemd services
+7. Configure log rotation
 
 After installation, open the admin UI from another device to complete first-time setup:
 
@@ -85,7 +77,7 @@ The installer can be tested end-to-end in Docker without affecting your host sys
 ./test-docker.sh --with-display   # Includes Chromium and X server install
 ```
 
-This builds a Debian 12 container, runs `install.sh --test`, then verifies the full installation (user, directories, venv, database, frontend build, encryption key, health check). On failure the container is preserved for debugging.
+This builds a Debian 12 container, runs `install.sh --test`, then verifies the full installation (user, directories, database, frontend build, encryption key, health check). On failure the container is preserved for debugging.
 
 ## CLI
 
@@ -129,63 +121,45 @@ Weather uses the [Open-Meteo API](https://open-meteo.com/) which is free and req
 
 ## Database Migrations
 
-Migrations are managed with Alembic:
-
-```bash
-# Run migrations (from project root)
-PYTHONPATH=. .venv/bin/alembic -c server/alembic.ini upgrade head
-
-# Create a new migration
-PYTHONPATH=. .venv/bin/alembic -c server/alembic.ini revision --autogenerate -m "description"
-```
+Migrations run automatically on server start. SQL migration files are in `src/server/db/migrations/sql/` and tracked in a `_migrations` table.
 
 ## Project Structure
 
 ```
 wallboard/
-├── server/                    # FastAPI backend
-│   ├── app/
-│   │   ├── main.py            # Entrypoint, lifespan, middleware, SPA serving
-│   │   ├── config.py          # Configuration dataclass
-│   │   ├── database.py        # SQLAlchemy setup
-│   │   ├── models.py          # ORM models (Layout, Widget, Integration, Cache)
-│   │   ├── schemas.py         # Pydantic request/response models
-│   │   ├── auth.py            # Authentication helpers
-│   │   ├── logging.py         # Structured logging (structlog)
-│   │   ├── routers/           # API endpoints (/api/*)
-│   │   │   ├── layouts.py     # Layout CRUD + activation
-│   │   │   ├── widgets.py     # Widget CRUD + batch positioning
-│   │   │   ├── display.py     # Merged layout + cached data for display
-│   │   │   ├── settings.py    # Auth setup/login/logout, app settings
-│   │   │   ├── integrations.py # Google OAuth connect/callback/disconnect
-│   │   │   └── google_data.py # Google Calendar/Photos proxy endpoints
-│   │   └── services/          # Business logic
-│   │       ├── refresh.py     # Background data refresh loop
-│   │       ├── weather.py     # Open-Meteo API client
-│   │       ├── encryption.py  # Fernet encrypt/decrypt
-│   │       ├── google_auth.py # Google OAuth flow
-│   │       ├── google_calendar.py
-│   │       └── google_photos.py
-│   ├── alembic/               # Database migrations
-│   ├── tests/                 # pytest test suite
-│   ├── alembic.ini
-│   └── requirements.txt
-├── frontend/                  # React frontend
-│   ├── src/
-│   │   ├── dashboard/         # Full-screen display route
-│   │   │   └── widgets/       # Widget components
-│   │   ├── admin/             # Admin configuration UI
-│   │   │   └── widget-configs/ # Per-widget config forms
-│   │   └── shared/            # API client, types
-│   ├── package.json
-│   └── vite.config.ts
-├── tests/
-│   └── test_install.sh        # Post-install verification assertions
+├── src/
+│   ├── shared/                # Types and constants (server + frontend)
+│   │   ├── types.ts           # TypeBox schemas + response interfaces
+│   │   └── constants.ts       # DEFAULT_THEME, TTLs, etc.
+│   ├── server/                # Fastify backend
+│   │   ├── index.ts           # Entrypoint (DB init, migrations, listen)
+│   │   ├── app.ts             # App factory (plugins, routes, refresh loop)
+│   │   ├── config.ts          # Configuration class
+│   │   ├── auth.ts            # Password hashing, session tokens
+│   │   ├── db/
+│   │   │   ├── connection.ts  # Database setup (better-sqlite3)
+│   │   │   ├── migrations/    # SQL migration runner + .sql files
+│   │   │   └── queries/       # Raw SQL query functions
+│   │   ├── middleware/        # Auth, request logging, SPA serving
+│   │   ├── routes/            # API endpoints (/api/*)
+│   │   └── services/          # External APIs, refresh loop, encryption
+│   └── frontend/              # React frontend
+│       ├── index.html
+│       └── src/
+│           ├── dashboard/     # Full-screen display route
+│           │   └── widgets/   # Widget components
+│           ├── admin/         # Admin configuration UI
+│           │   └── widget-configs/
+│           └── shared/        # API client, types
+├── dist/                      # Build output (server + frontend)
 ├── system/                    # Systemd service files
 ├── bin/wallboard              # CLI tool
-├── install.sh                 # Production installer (Debian-based systems)
-├── Dockerfile.test            # Docker image for install testing
-├── test-docker.sh             # Orchestration script for Docker install tests
+├── install.sh                 # Production installer
+├── test-docker.sh             # Docker install test
+├── package.json               # Single package for entire project
+├── tsconfig.json              # TypeScript config with path aliases
+├── vite.config.ts             # Vite config (root: src/frontend)
+├── vitest.config.ts           # Test config (95% coverage thresholds)
 └── CLAUDE.md                  # Development reference
 ```
 

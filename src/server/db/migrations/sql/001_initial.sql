@@ -1,0 +1,40 @@
+CREATE TABLE layouts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  columns INTEGER NOT NULL DEFAULT 12,
+  row_height INTEGER NOT NULL DEFAULT 80,
+  is_active INTEGER NOT NULL DEFAULT 0,
+  theme TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE widgets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  layout_id INTEGER NOT NULL REFERENCES layouts(id) ON DELETE CASCADE,
+  widget_type TEXT NOT NULL,
+  config TEXT NOT NULL DEFAULT '{}',
+  position_x INTEGER NOT NULL DEFAULT 0,
+  position_y INTEGER NOT NULL DEFAULT 0,
+  width INTEGER NOT NULL DEFAULT 3,
+  height INTEGER NOT NULL DEFAULT 2,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE integrations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  provider TEXT NOT NULL,
+  credentials TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'disconnected',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE cache (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL UNIQUE,
+  data TEXT NOT NULL,
+  fetched_at TEXT NOT NULL,
+  expires_at TEXT
+);

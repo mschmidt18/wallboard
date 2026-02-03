@@ -77,10 +77,6 @@ info "Step 1/9: Installing system dependencies..."
 
 apt-get update -qq
 
-# Python
-apt-get install -y -qq python3 python3-venv python3-pip > /dev/null
-success "Python 3 installed"
-
 # Chromium + X server (skip in test mode without --with-display)
 if $INSTALL_DISPLAY; then
     if apt-get install -y -qq chromium-browser > /dev/null 2>&1; then
@@ -144,10 +140,10 @@ chmod 750 "$CONFIG_DIR"
 success "Directories created: $INSTALL_DIR, $CONFIG_DIR, $LOG_DIR"
 
 # ---------------------------------------------------------------------------
-# Step 3: Clone repo, set up Python venv, install pip dependencies
+# Step 3: Clone repo and install Node.js dependencies
 # ---------------------------------------------------------------------------
 
-info "Step 3/9: Cloning repository and setting up Python environment..."
+info "Step 3/9: Cloning repository and installing dependencies..."
 
 if $TEST_MODE; then
     # In test mode, copy source from build context instead of cloning
@@ -171,29 +167,19 @@ cd "$INSTALL_DIR"
 chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"
 success "File ownership set to $SERVICE_USER"
 
-python3 -m venv "$INSTALL_DIR/.venv"
-"$INSTALL_DIR/.venv/bin/pip" install --quiet --upgrade pip
-"$INSTALL_DIR/.venv/bin/pip" install --quiet -r "$INSTALL_DIR/server/requirements.txt"
-success "Python venv created and dependencies installed"
-
-# Run Alembic migrations to initialize migration tracking and apply any pending migrations
-cd "$INSTALL_DIR/server"
-WALLBOARD_DB_PATH="/home/$SERVICE_USER/.wallboard/wallboard.db" \
-    sudo -u "$SERVICE_USER" "$INSTALL_DIR/.venv/bin/alembic" upgrade head
-cd "$INSTALL_DIR"
-success "Database migrations applied"
-
-# ---------------------------------------------------------------------------
-# Step 4: Build the React frontend
-# ---------------------------------------------------------------------------
-
-info "Step 4/9: Building React frontend..."
-
-cd "$INSTALL_DIR/frontend"
 npm install --silent
+success "Node.js dependencies installed"
+
+# ---------------------------------------------------------------------------
+# Step 4: Build server and frontend
+# ---------------------------------------------------------------------------
+
+info "Step 4/9: Building server and frontend..."
+
+cd "$INSTALL_DIR"
 npm run build --silent
 chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"
-success "Frontend built to frontend/dist/"
+success "Server and frontend built"
 
 # ---------------------------------------------------------------------------
 # Step 5: Generate device-specific encryption key
@@ -206,7 +192,7 @@ SECRET_KEY_FILE="$CONFIG_DIR/secret.key"
 if [ -f "$SECRET_KEY_FILE" ]; then
     warn "Encryption key already exists at $SECRET_KEY_FILE -- skipping"
 else
-    "$INSTALL_DIR/.venv/bin/python" -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > "$SECRET_KEY_FILE"
+    node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))" > "$SECRET_KEY_FILE"
     chown root:wallboard "$SECRET_KEY_FILE"
     chmod 640 "$SECRET_KEY_FILE"
     success "Encryption key generated at $SECRET_KEY_FILE"

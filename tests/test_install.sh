@@ -67,44 +67,26 @@ check "$WALLBOARD_DATA owned by $SERVICE_USER" \
     test "$(stat -c '%U' "$WALLBOARD_DATA")" = "$SERVICE_USER"
 
 # -------------------------------------------------------------------------
-# 4. Python venv with critical packages
+# 4. Node.js installed with dependencies
 # -------------------------------------------------------------------------
-VENV="$INSTALL_DIR/.venv"
-check "Python venv exists" test -x "$VENV/bin/python"
+check "Node.js installed" command -v node
 
-for pkg in fastapi uvicorn sqlalchemy alembic pydantic; do
-    check "pip package installed: $pkg" "$VENV/bin/pip" show "$pkg"
-done
+check "node_modules exists" test -d "$INSTALL_DIR/node_modules"
 
 # -------------------------------------------------------------------------
-# 5. Database exists with expected tables
+# 5. Server and frontend built
 # -------------------------------------------------------------------------
-DB_PATH="$WALLBOARD_DATA/wallboard.db"
-check "database file exists" test -f "$DB_PATH"
+check "dist/server/index.js exists" \
+    test -f "$INSTALL_DIR/dist/server/index.js"
 
-if [ -f "$DB_PATH" ]; then
-    for table in alembic_version layouts widgets integrations cache; do
-        check "database has table: $table" \
-            "$VENV/bin/python" -c "
-import sqlite3
-conn = sqlite3.connect('$DB_PATH')
-cursor = conn.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='$table'\")
-assert cursor.fetchone() is not None, 'Table $table not found'
-"
-    done
-fi
+check "dist/frontend/index.html exists" \
+    test -f "$INSTALL_DIR/dist/frontend/index.html"
+
+check "dist/frontend/assets/ exists" \
+    test -d "$INSTALL_DIR/dist/frontend/assets"
 
 # -------------------------------------------------------------------------
-# 6. Frontend built
-# -------------------------------------------------------------------------
-check "frontend/dist/index.html exists" \
-    test -f "$INSTALL_DIR/frontend/dist/index.html"
-
-check "frontend/dist/assets/ exists" \
-    test -d "$INSTALL_DIR/frontend/dist/assets"
-
-# -------------------------------------------------------------------------
-# 7. Encryption key
+# 6. Encryption key
 # -------------------------------------------------------------------------
 SECRET_KEY="$CONFIG_DIR/secret.key"
 check "encryption key exists" test -f "$SECRET_KEY"
@@ -120,7 +102,7 @@ if [ -f "$SECRET_KEY" ]; then
 fi
 
 # -------------------------------------------------------------------------
-# 8. Systemd service files copied
+# 7. Systemd service files copied
 # -------------------------------------------------------------------------
 check "wallboard-server.service exists" \
     test -f /etc/systemd/system/wallboard-server.service
@@ -129,25 +111,21 @@ check "wallboard-display.service exists" \
     test -f /etc/systemd/system/wallboard-display.service
 
 # -------------------------------------------------------------------------
-# 9. CLI installed and executable
+# 8. CLI installed and executable
 # -------------------------------------------------------------------------
 check "CLI at /usr/local/bin/wallboard" test -f /usr/local/bin/wallboard
 check "CLI is executable" test -x /usr/local/bin/wallboard
 
 # -------------------------------------------------------------------------
-# 10. Server starts and responds to health check
+# 9. Server starts and responds to health check
 # -------------------------------------------------------------------------
 echo ""
 echo "--- Starting server for health check ---"
 
 # Start server in background as wallboard user
 sudo -u "$SERVICE_USER" \
-    WALLBOARD_DB_PATH="$DB_PATH" \
-    WALLBOARD_SECRET_KEY_PATH="$SECRET_KEY" \
-    WALLBOARD_LOG_PATH="$LOG_DIR/wallboard.log" \
-    "$VENV/bin/uvicorn" server.app.main:app \
-    --host 127.0.0.1 --port 8000 \
-    --app-dir "$INSTALL_DIR" &
+    NODE_ENV=production \
+    node "$INSTALL_DIR/dist/server/index.js" &
 SERVER_PID=$!
 
 # Wait for server to be ready (up to 15 seconds)
@@ -161,6 +139,24 @@ for i in $(seq 1 30); do
 done
 
 if $READY; then
+    # Verify database was created with expected tables
+    DB_PATH="$WALLBOARD_DATA/wallboard.db"
+    if [ -f "$DB_PATH" ]; then
+        pass "database file created on startup"
+        for table in _migrations layouts widgets integrations cache ics_calendars; do
+            # Run from /opt/wallboard where node_modules exists
+            check "database has table: $table" \
+                bash -c "cd $INSTALL_DIR && node -e \"
+const Database = require('better-sqlite3');
+const db = new Database('$DB_PATH', { readonly: true });
+const row = db.prepare(\\\"SELECT name FROM sqlite_master WHERE type='table' AND name=?\\\").get('$table');
+if (!row) process.exit(1);
+\""
+        done
+    else
+        fail "database file created on startup"
+    fi
+
     pass "server responds to GET /api/health"
 else
     fail "server did not respond to GET /api/health within 15s"

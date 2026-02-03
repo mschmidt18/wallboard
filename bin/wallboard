@@ -2,7 +2,7 @@
 #
 # wallboard - CLI for managing the Wallboard digital dashboard
 #
-# Manages the wallboard-server (FastAPI backend) and wallboard-display
+# Manages the wallboard-server (Node.js/Fastify backend) and wallboard-display
 # (Chromium kiosk) systemd services on a Raspberry Pi.
 #
 
@@ -75,16 +75,10 @@ cmd_update() {
     cd "$INSTALL_DIR"
     sudo -u "$WALLBOARD_USER" git pull
 
-    echo "Installing Python dependencies..."
-    sudo -u "$WALLBOARD_USER" "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/server/requirements.txt" --quiet
+    echo "Installing dependencies..."
+    sudo -u "$WALLBOARD_USER" npm install
 
-    echo "Running database migrations..."
-    cd "$INSTALL_DIR/server"
-    sudo -u "$WALLBOARD_USER" "$INSTALL_DIR/.venv/bin/alembic" upgrade head
-
-    echo "Rebuilding frontend..."
-    cd "$INSTALL_DIR/frontend"
-    sudo -u "$WALLBOARD_USER" npm ci
+    echo "Building server and frontend..."
     sudo -u "$WALLBOARD_USER" npm run build
 
     echo "Restarting services..."

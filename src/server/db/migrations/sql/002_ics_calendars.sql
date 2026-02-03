@@ -1,0 +1,8 @@
+CREATE TABLE ics_calendars (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  color TEXT NOT NULL DEFAULT '#6366f1',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
