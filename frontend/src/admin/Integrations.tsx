@@ -282,7 +282,7 @@ export default function Integrations() {
             </li>
             <li>
               Enable the <strong>Google Calendar API</strong> and{" "}
-              <strong>Google Photos Library API</strong> under APIs &amp; Services.
+              <strong>Photos Picker API</strong> under APIs &amp; Services.
             </li>
             <li>
               Create an <strong>OAuth 2.0 Client ID</strong> (Web application type).

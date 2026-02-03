@@ -6,7 +6,7 @@ from server.app.config import Config
 from server.app.models import Widget, Cache, Integration, IcsCalendar
 from server.app.services.weather import fetch_weather
 from server.app.services.google_calendar import fetch_events
-from server.app.services.google_photos import fetch_album_photos
+from server.app.services.google_photos import get_session_media_items
 from server.app.services.ical_service import fetch_ics_events
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_INTERVALS = {
     "weather": timedelta(minutes=30),
     "google_calendar": timedelta(minutes=5),
-    "google_photos": timedelta(minutes=15),
+    "google_photos": timedelta(minutes=50),
     "ics_calendar": timedelta(minutes=15),
 }
 
@@ -85,11 +85,12 @@ def _collect_data_sources(session: Session) -> list[dict]:
                             "interval": DEFAULT_INTERVALS["ics_calendar"],
                         }
         elif widget.widget_type == "photos":
-            album_id = config.get("album_id")
-            if album_id:
-                key = f"google_photos_album_{album_id}"
+            picker_session_id = config.get("picker_session_id")
+            if picker_session_id:
+                key = f"google_photos_picker_{picker_session_id}"
                 if key not in sources:
-                    sources[key] = {"type": "photos", "key": key, "params": config,
+                    sources[key] = {"type": "photos", "key": key,
+                        "params": {"picker_session_id": picker_session_id},
                         "interval": DEFAULT_INTERVALS["google_photos"]}
     return list(sources.values())
 
@@ -151,11 +152,27 @@ async def _fetch_source(source: dict, session_factory: sessionmaker, config: Con
         if not access_token:
             logger.warning("No Google access token for photos fetch")
             return None
-        album_id = params.get("album_id")
-        if not album_id:
+        session_id = params.get("picker_session_id")
+        if not session_id:
             return None
-        photos = await fetch_album_photos(access_token=access_token, album_id=album_id)
-        return {"photos": photos}
+        try:
+            from urllib.parse import quote
+            items = await get_session_media_items(access_token=access_token, session_id=session_id)
+            photos = [
+                {
+                    "id": item["id"],
+                    "url": f"/api/photos/proxy?url={quote(item['baseUrl'], safe='')}",
+                    "mimeType": item["mimeType"],
+                }
+                for item in items
+            ]
+            return {"photos": photos}
+        except Exception as e:
+            error_str = str(e)
+            if "404" in error_str or "403" in error_str:
+                logger.warning(f"Picker session {session_id} expired or not found: {e}")
+                return {"photos": [], "session_expired": True}
+            raise
     elif source_type == "ics_calendar":
         events = await fetch_ics_events(**params)
         return {"events": events}

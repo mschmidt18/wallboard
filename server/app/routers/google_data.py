@@ -7,12 +7,16 @@ from sqlalchemy.orm import Session
 
 from server.app.config import Config
 from server.app.database import get_db
-from server.app.models import Integration
 from server.app.routers.settings import require_auth
-from server.app.services.encryption import load_or_create_key, decrypt
+from server.app.services.encryption import load_or_create_key
 from server.app.services.google_auth import get_valid_access_token
-from server.app.services.google_calendar import fetch_calendars, fetch_events
-from server.app.services.google_photos import fetch_albums, fetch_album_photos
+from server.app.services.google_calendar import fetch_calendars
+from server.app.services.google_photos import (
+    create_picker_session,
+    get_picker_session,
+    get_session_media_items,
+    delete_picker_session,
+)
 
 router = APIRouter(prefix="/api/google", tags=["google_data"], dependencies=[Depends(require_auth)])
 
@@ -61,13 +65,38 @@ async def get_calendars(db: Session = Depends(get_db)):
     return await fetch_calendars(access_token=access_token)
 
 
-@router.get("/photos/albums")
-async def get_photo_albums(db: Session = Depends(get_db)):
+@router.post("/photos/picker-session")
+async def create_photo_picker_session(db: Session = Depends(get_db)):
     access_token = await _get_access_token(db)
-    return await fetch_albums(access_token=access_token)
+    session_data = await create_picker_session(access_token=access_token)
+    return {
+        "session_id": session_data["id"],
+        "picker_uri": session_data["pickerUri"],
+        "polling_config": session_data.get("pollingConfig", {}),
+    }
 
 
-@router.get("/photos/albums/{album_id}/photos")
-async def get_album_photos(album_id: str, db: Session = Depends(get_db)):
+@router.get("/photos/picker-session/{session_id}")
+async def poll_photo_picker_session(session_id: str, db: Session = Depends(get_db)):
     access_token = await _get_access_token(db)
-    return await fetch_album_photos(access_token=access_token, album_id=album_id)
+    session_data = await get_picker_session(access_token=access_token, session_id=session_id)
+    media_items_set = session_data.get("mediaItemsSet", False)
+    result: dict = {"media_items_set": media_items_set}
+    if media_items_set:
+        from urllib.parse import quote
+        items = await get_session_media_items(access_token=access_token, session_id=session_id)
+        result["photos"] = [
+            {
+                "id": item["id"],
+                "url": f"/api/photos/proxy?url={quote(item['baseUrl'], safe='')}",
+                "mimeType": item["mimeType"],
+            }
+            for item in items
+        ]
+    return result
+
+
+@router.delete("/photos/picker-session/{session_id}")
+async def delete_photo_picker_session(session_id: str, db: Session = Depends(get_db)):
+    access_token = await _get_access_token(db)
+    await delete_picker_session(access_token=access_token, session_id=session_id)

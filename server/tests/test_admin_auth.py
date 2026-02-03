@@ -159,13 +159,13 @@ def test_get_calendars_requires_auth(client):
     assert response.status_code == 401
 
 
-def test_get_photo_albums_requires_auth(client):
-    response = client.get("/api/google/photos/albums")
+def test_create_picker_session_requires_auth(client):
+    response = client.post("/api/google/photos/picker-session")
     assert response.status_code == 401
 
 
-def test_get_album_photos_requires_auth(client):
-    response = client.get("/api/google/photos/albums/abc123/photos")
+def test_poll_picker_session_requires_auth(client):
+    response = client.get("/api/google/photos/picker-session/session-abc")
     assert response.status_code == 401
 
 

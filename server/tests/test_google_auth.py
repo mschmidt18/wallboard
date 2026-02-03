@@ -10,7 +10,7 @@ def test_build_auth_url():
     )
     assert "test-client-id" in url
     assert "calendar.readonly" in url
-    assert "photoslibrary.readonly" in url
+    assert "photospicker.mediaitems.readonly" in url
     assert "redirect_uri" in url
 
 

@@ -92,7 +92,7 @@ def test_display_only_loads_relevant_cache_entries(authed_client, db_session):
         Cache(source="weather_40.7_-74.0", data={"temp": 72, "condition": "sunny"}),
         Cache(source="weather_51.5_-0.1", data={"temp": 15, "condition": "rainy"}),
         Cache(source="google_calendar_work_7", data={"events": []}),
-        Cache(source="google_photos_album_abc123", data={"photos": ["a.jpg"]}),
+        Cache(source="google_photos_picker_session123", data={"photos": ["a.jpg"]}),
     ])
     db_session.commit()
 
@@ -124,7 +124,7 @@ def test_display_only_loads_relevant_cache_entries(authed_client, db_session):
     assert _get_cache_key(FakeWidget("weather", {"lat": 40.7, "lon": -74.0})) == "weather_40.7_-74.0"
     assert _get_cache_key(FakeWidget("clock", {"timezone": "UTC"})) is None
     assert _get_cache_key(FakeWidget("calendar", {"calendar_ids": ["work"], "days_ahead": 7})) == "google_calendar_work_7"
-    assert _get_cache_key(FakeWidget("photos", {"album_id": "abc"})) == "google_photos_album_abc"
+    assert _get_cache_key(FakeWidget("photos", {"picker_session_id": "abc"})) == "google_photos_picker_abc"
     assert _get_cache_key(FakeWidget("notes", {})) is None
 
 

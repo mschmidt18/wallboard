@@ -118,7 +118,7 @@ On production installations, the encryption key for OAuth tokens is stored at `/
 
 To use Google Calendar and Google Photos widgets:
 
-1. Create a Google Cloud project and enable the Calendar and Photos APIs
+1. Create a Google Cloud project and enable the Calendar API and Photos Picker API
 2. Create OAuth 2.0 credentials (web application type)
 3. Set the redirect URI to `http://<device-ip>:8000/api/integrations/google/callback`
 4. Enter the Client ID and Client Secret in the admin UI under Integrations

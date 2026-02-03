@@ -10,7 +10,7 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
-    "https://www.googleapis.com/auth/photoslibrary.readonly",
+    "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
 ]
 
 logger = logging.getLogger(__name__)

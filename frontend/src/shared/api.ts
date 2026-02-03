@@ -123,8 +123,14 @@ export const api = {
     request<void>("/integrations/google", { method: "DELETE" }),
   getGoogleCalendars: () =>
     request<{ id: string; name: string; color: string }[]>("/google/calendars"),
-  getGooglePhotoAlbums: () =>
-    request<{ id: string; title: string; count: number }[]>("/google/photos/albums"),
+  createPhotoPickerSession: () =>
+    request<{ session_id: string; picker_uri: string; polling_config: Record<string, unknown> }>("/google/photos/picker-session", {
+      method: "POST",
+    }),
+  pollPhotoPickerSession: (sessionId: string) =>
+    request<{ media_items_set: boolean; photos?: { id: string; url: string; mimeType: string }[] }>(`/google/photos/picker-session/${sessionId}`),
+  deletePhotoPickerSession: (sessionId: string) =>
+    request<void>(`/google/photos/picker-session/${sessionId}`, { method: "DELETE" }),
   getVersion: () => request<VersionResponse>("/system/version"),
   checkUpdate: () =>
     request<UpdateCheckResponse>("/system/check-update", { method: "POST" }),

@@ -1,14 +1,19 @@
 import json
+import logging
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from server.app.config import Config
 from server.app.database import get_db
 from server.app.models import Layout, Cache, IcsCalendar
 from server.app.schemas import DisplayResponse, DisplayWidgetResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["display"])
 
@@ -53,9 +58,9 @@ def _get_cache_key(widget) -> str | None:
         days_ahead = config.get("days_ahead", 7)
         return f"google_calendar_{'_'.join(calendar_ids)}_{days_ahead}"
     elif wtype == "photos":
-        album_id = config.get("album_id")
-        if album_id:
-            return f"google_photos_album_{album_id}"
+        picker_session_id = config.get("picker_session_id")
+        if picker_session_id:
+            return f"google_photos_picker_{picker_session_id}"
     return None
 
 
@@ -195,4 +200,60 @@ def get_display(db: Session = Depends(get_db)):
         },
         widgets=widgets,
         refresh_interval=_get_refresh_interval(),
+    )
+
+
+@router.get("/api/photos/proxy")
+async def proxy_photo(url: str = Query(...), db: Session = Depends(get_db)):
+    """Proxy Google Photos images that require OAuth authorization.
+
+    The Picker API base URLs require an Authorization header, so the browser
+    cannot load them directly in <img> tags. This endpoint fetches the image
+    server-side with the OAuth token and streams it back.
+    """
+    if not url.startswith("https://lh3.googleusercontent.com/"):
+        raise HTTPException(status_code=400, detail="Invalid photo URL")
+
+    assert _config is not None, "Config not set; call set_config() first"
+    from server.app.services.encryption import load_or_create_key
+    from server.app.services.google_auth import get_valid_access_token
+
+    key = load_or_create_key(_config.secret_key_path)
+    settings_path = _config.db_path.parent / "settings.json"
+    settings = {}
+    if settings_path.exists():
+        settings = json.loads(settings_path.read_text())
+
+    access_token = await get_valid_access_token(
+        session=db,
+        encryption_key=key,
+        client_id=settings.get("google_client_id", ""),
+        client_secret=settings.get("google_client_secret", ""),
+    )
+    if not access_token:
+        raise HTTPException(status_code=502, detail="Google not connected")
+
+    # Append size parameters for display-sized images
+    photo_url = f"{url}=w1920-h1080"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                photo_url,
+                headers={"Authorization": f"Bearer {access_token}"},
+                follow_redirects=True,
+                timeout=15.0,
+            )
+            resp.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"Photo proxy failed: {e.response.status_code}")
+        raise HTTPException(status_code=e.response.status_code, detail="Photo fetch failed")
+    except httpx.RequestError as e:
+        logger.warning(f"Photo proxy request error: {e}")
+        raise HTTPException(status_code=502, detail="Photo fetch failed")
+
+    return Response(
+        content=resp.content,
+        media_type=resp.headers.get("content-type", "image/jpeg"),
+        headers={"Cache-Control": "private, max-age=3000"},
     )

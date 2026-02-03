@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 
 interface PhotosWidgetProps {
   config: {
-    album_id?: string;
+    picker_session_id?: string;
     interval_seconds?: number;
   };
   data?: Record<string, unknown> | null;
@@ -12,10 +12,6 @@ interface Photo {
   url: string;
   width: number;
   height: number;
-}
-
-function getSizedUrl(url: string): string {
-  return `${url}=w1920-h1080`;
 }
 
 export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
@@ -50,7 +46,7 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
   // this is a one-time initialization when the photo set changes.
   useEffect(() => {
     if (photos.length === 0) return;
-    const url = getSizedUrl(photos[0].url);
+    const url = photos[0].url;
     indexRef.current = 0;
     setFrontSrc(url);
     setBackSrc(null);
@@ -65,7 +61,7 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
     timerRef.current = setInterval(() => {
       const nextIdx = (indexRef.current + 1) % photos.length;
       indexRef.current = nextIdx;
-      const nextUrl = getSizedUrl(photos[nextIdx].url);
+      const nextUrl = photos[nextIdx].url;
 
       preloadImage(nextUrl).then(() => {
         setShowFront((front) => {

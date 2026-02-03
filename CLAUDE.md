@@ -73,7 +73,7 @@ cd frontend && npm run lint         # Lint with ESLint
 - `google_data.py` - proxy endpoints for Google Calendar/Photos data
 
 **Services** (`services/`):
-- `refresh.py` - background loop that scans all widgets, deduplicates data sources, fetches when cache expires. Each source type has a default TTL (weather: 30min, calendar: 5min, photos: 15min).
+- `refresh.py` - background loop that scans all widgets, deduplicates data sources, fetches when cache expires. Each source type has a default TTL (weather: 30min, calendar: 5min, photos: 50min).
 - `weather.py` - Open-Meteo API (free, no key)
 - `google_auth.py`, `google_calendar.py`, `google_photos.py` - Google API integrations
 - `encryption.py` - Fernet encrypt/decrypt for credential storage
