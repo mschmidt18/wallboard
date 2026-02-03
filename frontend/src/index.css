@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+/* Override react-grid-layout placeholder: blue drop indicator */
+.react-grid-item.react-grid-placeholder {
+  background: rgb(99 102 241); /* indigo-500 */
+  opacity: 0.15;
+  border: 2px dashed rgb(99 102 241);
+  border-radius: 0.5rem;
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { GridLayout, noCompactor } from "react-grid-layout";
+import { GridLayout, getCompactor } from "react-grid-layout";
 import type { LayoutItem, Layout as RGLLayout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -26,6 +26,20 @@ const DEFAULT_SIZES: Record<WidgetType, { w: number; h: number }> = {
   photos: { w: 4, h: 4 },
   notes: { w: 2, h: 3 },
 };
+
+// Vertical compaction: widgets displace downward on collision, no overlap
+const verticalCompactor = getCompactor("vertical");
+
+function getGridBackground(width: number, cols: number, rowHeight: number) {
+  const colWidth = width / cols;
+  return {
+    backgroundSize: `${colWidth}px ${rowHeight}px`,
+    backgroundImage:
+      `linear-gradient(to right, rgb(209 213 219 / 0.5) 1px, transparent 1px), ` +
+      `linear-gradient(to bottom, rgb(209 213 219 / 0.5) 1px, transparent 1px)`,
+    backgroundPosition: "0 0",
+  };
+}
 
 function widgetsToGridLayout(widgets: Widget[]): LayoutItem[] {
   return widgets.map((w) => ({
@@ -381,10 +395,21 @@ export default function LayoutEditor() {
         </div>
       )}
 
+      {/* Grid info */}
+      <div className="flex items-center gap-2 text-xs text-gray-500">
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zm0 9.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zm9.75-9.75A2.25 2.25 0 0115.75 3.75H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z" />
+        </svg>
+        {layout.columns} cols &times; {layout.row_height}px rows
+        <span className="text-gray-300">|</span>
+        Drag to reposition, resize from edges
+      </div>
+
       {/* Grid editor */}
       <div
         ref={containerRef}
         className="rounded-lg border border-gray-200 bg-gray-50 p-2 min-h-[400px]"
+        style={getGridBackground(containerWidth - 16, layout.columns, layout.row_height)}
         onClick={(e) => {
           // Deselect when clicking empty space
           if (e.target === e.currentTarget || (e.target as HTMLElement).closest("[data-grid-bg]")) {
@@ -411,7 +436,7 @@ export default function LayoutEditor() {
             dragConfig={{
               cancel: ".no-drag",
             }}
-            compactor={noCompactor}
+            compactor={verticalCompactor}
             onLayoutChange={handleLayoutChange}
           >
             {layout.widgets.map((widget) => {
