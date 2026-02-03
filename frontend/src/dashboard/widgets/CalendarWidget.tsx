@@ -32,12 +32,24 @@ function formatTime(isoString: string): string {
   });
 }
 
+function parseEventDate(event: CalendarEvent): Date {
+  // All-day events have date-only strings like "2026-02-14".
+  // new Date("2026-02-14") parses as UTC midnight, which shifts to the
+  // previous day in western timezones.  Parse the parts manually so the
+  // Date is created in local time instead.
+  if (event.all_day && /^\d{4}-\d{2}-\d{2}$/.test(event.start)) {
+    const [y, m, d] = event.start.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(event.start);
+}
+
 function groupEventsByDay(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
   const today = new Date();
   const groups = new Map<string, CalendarEvent[]>();
 
   for (const event of events) {
-    const eventDate = new Date(event.start);
+    const eventDate = parseEventDate(event);
     const label = getDayLabel(eventDate, today);
     const existing = groups.get(label);
     if (existing) {

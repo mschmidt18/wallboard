@@ -52,7 +52,7 @@ def list_integrations(db: Session = Depends(get_db)):
             "id": i.id,
             "provider": i.provider,
             "status": i.status,
-            "created_at": i.created_at.isoformat(),
+            "created_at": i.created_at.isoformat() + ("Z" if i.created_at.tzinfo is None else ""),
         }
         for i in integrations
     ]
