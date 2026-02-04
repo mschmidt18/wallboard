@@ -15,7 +15,7 @@ const DEFAULT_SETTINGS: SettingsData = {
   log_level: "INFO",
 };
 
-const LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR"];
+const LOG_LEVELS = ["DEBUG", "INFO", "WARN", "ERROR"];
 
 const REFRESH_OPTIONS = [
   { value: 15, label: "15 seconds" },
@@ -70,7 +70,7 @@ export default function Settings() {
         google_client_id: settings.google_client_id,
         google_client_secret: settings.google_client_secret,
         display_refresh_interval: settings.display_refresh_interval,
-        log_level: settings.log_level,
+        log_level: settings.log_level.toLowerCase(),
       });
       setFeedback({ type: "success", message: "Settings saved successfully." });
     } catch {

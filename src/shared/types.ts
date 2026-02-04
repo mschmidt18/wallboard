@@ -102,6 +102,12 @@ export const SettingsUpdateSchema = Type.Object({
   google_client_id: Type.Optional(Type.String()),
   google_client_secret: Type.Optional(Type.String()),
   display_refresh_interval: Type.Optional(Type.Integer()),
+  log_level: Type.Optional(Type.Union([
+    Type.Literal('debug'),
+    Type.Literal('info'),
+    Type.Literal('warn'),
+    Type.Literal('error'),
+  ])),
 });
 export type SettingsUpdate = Static<typeof SettingsUpdateSchema>;
 
@@ -182,6 +188,7 @@ export interface Settings {
   google_client_id: string;
   google_client_secret: string;
   display_refresh_interval: number;
+  log_level: string;
 }
 
 export interface IcsCalendar {

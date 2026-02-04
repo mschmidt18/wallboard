@@ -10,11 +10,13 @@ import {
 } from '@shared/types.js'
 import type { PasswordBody, ChangePasswordBody, SettingsUpdate } from '@shared/types.js'
 
+
 const DEFAULT_SETTINGS = {
   admin_password_hash: '',
   google_client_id: '',
   google_client_secret: '',
   display_refresh_interval: 60,
+  log_level: 'info',
 }
 
 function settingsPath(config: { dbPath: string }): string {
@@ -107,11 +109,13 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/api/settings', {
     preHandler: [requireAuth],
-  }, async () => {
+  }, async (request) => {
+    request.log.debug('Loading settings')
     const settings = loadSettings(config)
     return {
       google_client_id: settings.google_client_id || '',
       display_refresh_interval: settings.display_refresh_interval ?? 60,
+      log_level: ((settings.log_level as string) ?? 'info').toUpperCase(),
       has_password: Boolean(settings.admin_password_hash),
     }
   })
@@ -120,11 +124,18 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
     schema: { body: SettingsUpdateSchema },
     preHandler: [requireAuth],
   }, async (request) => {
+    request.log.debug({ update: request.body }, 'Updating settings')
     const settings = loadSettings(config)
     const update = request.body
     for (const [key, value] of Object.entries(update)) {
       if (value !== undefined) {
-        settings[key] = value
+        if (key === 'log_level') {
+          // Schema validates value is already a valid pino level
+          settings[key] = value
+          app.log.level = value as string // Runtime update to root logger
+        } else {
+          settings[key] = value
+        }
       }
     }
     saveSettings(config, settings)

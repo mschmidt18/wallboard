@@ -290,6 +290,83 @@ describe('settings routes', () => {
     expect(data.display_refresh_interval).toBe(120)
   })
 
+  // --- Log level settings ---
+
+  test('GET /api/settings returns default log_level as INFO', async () => {
+    await setupPassword()
+    const { cookie } = await login()
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/settings',
+      headers: { cookie },
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.json().log_level).toBe('INFO')
+  })
+
+  test('PUT /api/settings with log_level persists and GET returns correct value', async () => {
+    await setupPassword()
+    const { cookie } = await login()
+
+    // Set log level to debug (frontend sends lowercase pino level)
+    const updateResp = await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      payload: { log_level: 'debug' },
+      headers: { cookie },
+    })
+    expect(updateResp.statusCode).toBe(200)
+
+    // Verify GET returns uppercase frontend format
+    const getResp = await app.inject({
+      method: 'GET',
+      url: '/api/settings',
+      headers: { cookie },
+    })
+    expect(getResp.json().log_level).toBe('DEBUG')
+  })
+
+  test('PUT /api/settings with log_level updates runtime logger level', async () => {
+    await setupPassword()
+    const { cookie } = await login()
+
+    // Initial level should be info (default)
+    expect(app.log.level).toBe('info')
+
+    // Set to warn
+    const resp = await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      payload: { log_level: 'warn' },
+      headers: { cookie },
+    })
+    expect(resp.statusCode).toBe(200)
+
+    // Verify runtime logger level changed
+    expect(app.log.level).toBe('warn')
+  })
+
+  test('GET /api/settings returns log_level as uppercase', async () => {
+    await setupPassword()
+    const { cookie } = await login()
+
+    // Set to warn
+    await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      payload: { log_level: 'warn' },
+      headers: { cookie },
+    })
+
+    // Verify GET returns uppercase
+    const getResp = await app.inject({
+      method: 'GET',
+      url: '/api/settings',
+      headers: { cookie },
+    })
+    expect(getResp.json().log_level).toBe('WARN')
+  })
+
   // --- Full auth flow ---
 
   test('full auth flow: setup → login → access → logout → denied', async () => {
