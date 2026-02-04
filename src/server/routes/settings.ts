@@ -129,6 +129,11 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
     const update = request.body
     for (const [key, value] of Object.entries(update)) {
       if (value !== undefined) {
+        // Don't overwrite google_client_secret with empty string
+        // (frontend doesn't receive it back for security, so would send "")
+        if (key === 'google_client_secret' && value === '') {
+          continue
+        }
         if (key === 'log_level') {
           // Schema validates value is already a valid pino level
           settings[key] = value

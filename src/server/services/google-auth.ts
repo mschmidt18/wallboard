@@ -53,7 +53,8 @@ export async function exchangeCode(
   })
 
   if (!response.ok) {
-    throw new Error(`Token exchange failed: ${response.status} ${response.statusText}`)
+    const errorBody = await response.text()
+    throw new Error(`Token exchange failed: ${response.status} ${response.statusText} - ${errorBody}`)
   }
 
   return response.json() as Promise<TokenResponse>
@@ -79,7 +80,8 @@ export async function refreshAccessToken(
   })
 
   if (!response.ok) {
-    throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`)
+    const errorBody = await response.text()
+    throw new Error(`Token refresh failed: ${response.status} ${response.statusText} - ${errorBody}`)
   }
 
   return response.json() as Promise<TokenResponse>

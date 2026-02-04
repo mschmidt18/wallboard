@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, statSync } from 'fs'
+import { mkdtempSync, statSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import type { FastifyInstance } from 'fastify'
@@ -288,6 +288,34 @@ describe('settings routes', () => {
     const data = getResp.json()
     expect(data.google_client_id).toBe('my-client-id')
     expect(data.display_refresh_interval).toBe(120)
+  })
+
+  test('PUT /api/settings with empty google_client_secret preserves existing value', async () => {
+    await setupPassword()
+    const { cookie } = await login()
+
+    // Set a google_client_secret
+    await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      payload: { google_client_secret: 'my-secret-value' },
+      headers: { cookie },
+    })
+
+    // Update another setting while sending empty google_client_secret
+    // (this is what the frontend does since GET doesn't return the secret)
+    await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      payload: { log_level: 'debug', google_client_secret: '' },
+      headers: { cookie },
+    })
+
+    // Verify the secret was preserved by reading the settings file directly
+    // (GET /api/settings intentionally doesn't return the secret)
+    const settingsPath = join(tmpDir, 'settings.json')
+    const settings = JSON.parse(readFileSync(settingsPath, 'utf-8'))
+    expect(settings.google_client_secret).toBe('my-secret-value')
   })
 
   // --- Log level settings ---
