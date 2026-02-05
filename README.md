@@ -165,4 +165,4 @@ wallboard/
 
 ## License
 
-Private project.
+MIT License. See [LICENSE](LICENSE) for details.
