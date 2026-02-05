@@ -1,19 +1,22 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   resolve: {
     alias: {
-      '@shared': path.resolve(__dirname, 'src/shared'),
-      '@server': path.resolve(__dirname, 'src/server'),
+      '@shared': path.resolve(__dirname, '../shared'),
+      '@server': path.resolve(__dirname),
     },
   },
   test: {
     passWithNoTests: true,
-    setupFiles: ['src/server/test/setup.ts'],
+    setupFiles: [path.resolve(__dirname, 'test/setup.ts')],
     coverage: {
       provider: 'v8',
-      include: ['src/server/**', 'src/shared/**'],
+      include: ['src/server/**/*.ts', 'src/shared/**/*.ts'],
       exclude: ['src/server/vite-dev.ts', 'src/server/index.ts', 'src/server/test/**'],
       thresholds: {
         lines: 95,

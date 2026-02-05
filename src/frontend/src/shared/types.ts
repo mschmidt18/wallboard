@@ -5,7 +5,6 @@ import type { ThemeValues } from "@shared/types";
 
 export type {
   WidgetType,
-  LayoutCreate,
   LayoutUpdate,
   WidgetCreate,
   WidgetUpdate,
@@ -23,6 +22,14 @@ export type {
 } from "@shared/types";
 
 export { DEFAULT_THEME } from "@shared/constants";
+
+// Frontend-specific LayoutCreate: backend applies defaults for columns, row_height, theme
+export interface LayoutCreate {
+  name: string;
+  columns?: number;
+  row_height?: number;
+  theme?: Record<string, unknown>;
+}
 
 // Frontend-specific Settings: includes log_level which the shared type omits
 export interface Settings {

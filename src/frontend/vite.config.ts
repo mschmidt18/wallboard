@@ -7,14 +7,14 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  root: "src/frontend",
+  root: __dirname,
   build: {
     outDir: "../../dist/frontend",
     emptyOutDir: true,
   },
   resolve: {
     alias: {
-      "@shared": path.resolve(__dirname, "src/shared"),
+      "@shared": path.resolve(__dirname, "../shared"),
     },
   },
   plugins: [react(), tailwindcss()],
