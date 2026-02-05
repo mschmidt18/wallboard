@@ -19,7 +19,7 @@ export async function registerViteDev(app: FastifyInstance): Promise<void> {
   // Create Vite dev server in middleware mode
   // Use configFile to load vite.config.ts which contains the @shared alias
   const vite = await createServer({
-    configFile: path.resolve(__dirname, '../../vite.config.ts'),
+    configFile: path.resolve(__dirname, '../frontend/vite.config.ts'),
     server: { middlewareMode: true },
   })
 
