@@ -5,7 +5,7 @@ import { mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { createTestDb } from '../db/connection.js'
 import { Config } from '../config.js'
-import { collectDataSources, refreshOnce, startRefreshLoop } from './refresh.js'
+import { collectDataSources, refreshOnce, startRefreshLoop, forceRefreshAll } from './refresh.js'
 import type Database from 'better-sqlite3'
 
 // Mock external services
@@ -27,10 +27,18 @@ vi.mock('./google-auth.js', () => ({
 vi.mock('./encryption.js', () => ({
   loadOrCreateKey: vi.fn().mockReturnValue(Buffer.alloc(32)),
 }))
+vi.mock('./apple-photos.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./apple-photos.js')>()
+  return {
+    ...actual,
+    fetchApplePhotos: vi.fn(),
+  }
+})
 
 import { fetchWeather } from './weather.js'
 import { fetchIcsEvents } from './ical-service.js'
 import { getValidAccessToken } from './google-auth.js'
+import { fetchApplePhotos } from './apple-photos.js'
 
 let db: Database.Database
 let config: Config
@@ -78,6 +86,27 @@ function seedIcsCalendar(db: Database.Database, name: string, url: string, color
     `INSERT INTO ics_calendars (name, url, color, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?)`
   ).run(name, url, color, now, now)
+  return Number(result.lastInsertRowid)
+}
+
+function seedPhotosWidget(
+  db: Database.Database,
+  widgetConfig: Record<string, unknown>,
+): number {
+  const now = new Date().toISOString()
+  let layout = db.prepare('SELECT id FROM layouts WHERE is_active = 1').get() as { id: number } | undefined
+  if (!layout) {
+    db.prepare(
+      `INSERT INTO layouts (name, columns, row_height, is_active, theme, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run('Test', 12, 80, 1, '{}', now, now)
+    layout = db.prepare('SELECT id FROM layouts WHERE is_active = 1').get() as { id: number }
+  }
+
+  const result = db.prepare(
+    `INSERT INTO widgets (layout_id, widget_type, config, position_x, position_y, width, height, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(layout.id, 'photos', JSON.stringify(widgetConfig), 0, 0, 4, 3, now, now)
   return Number(result.lastInsertRowid)
 }
 
@@ -188,6 +217,62 @@ describe('collectDataSources', () => {
     expect(googleSources).toHaveLength(1)
     expect(icsSources).toHaveLength(1)
     expect(icsSources[0].key).toBe(`ics_calendar_${icsId}`)
+  })
+
+  it('creates apple_photos source for apple photos widget', () => {
+    seedPhotosWidget(db, {
+      photos_source: 'apple',
+      icloud_album_url: 'https://www.icloud.com/sharedalbum/#B0z5qAGN1JIFd3y',
+    })
+
+    const sources = collectDataSources(db)
+    const appleSources = sources.filter((s) => s.type === 'apple_photos')
+    expect(appleSources).toHaveLength(1)
+    expect(appleSources[0].key).toBe('apple_photos_B0z5qAGN1JIFd3y')
+    expect(appleSources[0].params).toEqual({
+      icloud_album_url: 'https://www.icloud.com/sharedalbum/#B0z5qAGN1JIFd3y',
+    })
+    expect(appleSources[0].interval).toBe(8 * 60 * 60)
+  })
+
+  it('creates google_photos source for google photos widget', () => {
+    seedPhotosWidget(db, {
+      photos_source: 'google',
+      picker_session_id: 'sess123',
+    })
+
+    const sources = collectDataSources(db)
+    const googleSources = sources.filter((s) => s.type === 'photos')
+    expect(googleSources).toHaveLength(1)
+    expect(googleSources[0].key).toBe('google_photos_picker_sess123')
+    expect(googleSources[0].params).toEqual({ picker_session_id: 'sess123' })
+    expect(googleSources[0].interval).toBe(50 * 60)
+  })
+
+  it('skips photos widget with no source configured', () => {
+    seedPhotosWidget(db, {})
+
+    const sources = collectDataSources(db)
+    const photosSources = sources.filter((s) => s.type === 'photos' || s.type === 'apple_photos')
+    expect(photosSources).toHaveLength(0)
+  })
+
+  it('handles legacy photos widget without photos_source field', () => {
+    // Legacy widgets only have picker_session_id (no photos_source)
+    seedPhotosWidget(db, { picker_session_id: 'legacy_sess' })
+
+    const sources = collectDataSources(db)
+    const googleSources = sources.filter((s) => s.type === 'photos')
+    expect(googleSources).toHaveLength(1)
+    expect(googleSources[0].key).toBe('google_photos_picker_legacy_sess')
+  })
+
+  it('skips apple_photos source when icloud_album_url is missing', () => {
+    seedPhotosWidget(db, { photos_source: 'apple' })
+
+    const sources = collectDataSources(db)
+    const appleSources = sources.filter((s) => s.type === 'apple_photos')
+    expect(appleSources).toHaveLength(0)
   })
 })
 
@@ -359,6 +444,44 @@ describe('refreshOnce', () => {
     const data = JSON.parse(row!.data)
     expect(data.session_expired).toBe(true)
   })
+
+  it('fetches apple photos and caches result', async () => {
+    seedPhotosWidget(db, {
+      photos_source: 'apple',
+      icloud_album_url: 'https://www.icloud.com/sharedalbum/#B0z5qAGN1JIFd3y',
+    })
+
+    vi.mocked(fetchApplePhotos).mockResolvedValue([
+      { id: 'abc123', url: 'https://cvws.icloud-content.com/photo1.jpg', width: 2048, height: 1536 },
+      { id: 'def456', url: 'https://cvws.icloud-content.com/photo2.jpg', width: 1024, height: 768 },
+    ])
+
+    await refreshOnce(db, config)
+
+    expect(fetchApplePhotos).toHaveBeenCalledWith('https://www.icloud.com/sharedalbum/#B0z5qAGN1JIFd3y')
+    const row = db.prepare("SELECT data FROM cache WHERE source = ?").get('apple_photos_B0z5qAGN1JIFd3y') as { data: string } | undefined
+    expect(row).toBeDefined()
+    const data = JSON.parse(row!.data)
+    expect(data.photos).toHaveLength(2)
+    expect(data.photos[0].id).toBe('abc123')
+    expect(data.photos[0].url).toBe('https://cvws.icloud-content.com/photo1.jpg')
+  })
+
+  it('handles apple album errors gracefully', async () => {
+    seedPhotosWidget(db, {
+      photos_source: 'apple',
+      icloud_album_url: 'https://www.icloud.com/sharedalbum/#PrivateAlbum',
+    })
+
+    vi.mocked(fetchApplePhotos).mockRejectedValue(new Error('Album not found or private'))
+
+    const logger = { info: vi.fn(), error: vi.fn(), debug: vi.fn() }
+    await refreshOnce(db, config, logger)
+
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('apple_photos_PrivateAlbum'))
+    const row = db.prepare("SELECT data FROM cache WHERE source = ?").get('apple_photos_PrivateAlbum') as { data: string } | undefined
+    expect(row).toBeUndefined()
+  })
 })
 
 describe('startRefreshLoop', () => {
@@ -400,5 +523,102 @@ describe('startRefreshLoop', () => {
 
     handle.stop()
     // Should not crash - error is caught and logged
+  })
+})
+
+describe('forceRefreshAll', () => {
+  it('invalidates cache and replaces stale data with fresh fetch', async () => {
+    seedWeatherWidget(db)
+    const newData = { current: { temperature: 72 }, daily: [] }
+    vi.mocked(fetchWeather).mockResolvedValue(newData as never)
+
+    // Populate cache with fresh data (different from what mock will return)
+    const futureExpiry = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    const oldData = { current: { temperature: 60 }, daily: [] }
+    db.prepare(
+      `INSERT INTO cache (source, data, fetched_at, expires_at)
+       VALUES (?, ?, ?, ?)`
+    ).run('weather_40.7_-74', JSON.stringify(oldData), new Date().toISOString(), futureExpiry)
+
+    // Verify cache has old data before force refresh
+    const beforeRow = db.prepare("SELECT data FROM cache WHERE source = 'weather_40.7_-74'").get() as { data: string }
+    expect(JSON.parse(beforeRow.data).current.temperature).toBe(60)
+
+    const logger = { info: vi.fn(), error: vi.fn(), debug: vi.fn() }
+    const result = await forceRefreshAll(db, config, logger)
+
+    expect(result.refreshed).toBe(1)
+    expect(result.failed).toBe(0)
+    expect(fetchWeather).toHaveBeenCalledOnce()
+    expect(logger.info).toHaveBeenCalledWith('Cache invalidated, starting force refresh')
+
+    // Verify cache now has NEW data (the actual point of force refresh)
+    const afterRow = db.prepare("SELECT data FROM cache WHERE source = 'weather_40.7_-74'").get() as { data: string }
+    expect(JSON.parse(afterRow.data).current.temperature).toBe(72)
+  })
+
+  it('returns counts for successes and failures', async () => {
+    seedWeatherWidget(db)
+    seedPhotosWidget(db, {
+      photos_source: 'apple',
+      icloud_album_url: 'https://www.icloud.com/sharedalbum/#TestAlbum',
+    })
+
+    vi.mocked(fetchWeather).mockResolvedValue({ current: { temperature: 72 }, daily: [] } as never)
+    vi.mocked(fetchApplePhotos).mockRejectedValue(new Error('Album not found'))
+
+    const logger = { info: vi.fn(), error: vi.fn(), debug: vi.fn() }
+    const result = await forceRefreshAll(db, config, logger)
+
+    expect(result.refreshed).toBe(1)
+    expect(result.failed).toBe(1)
+  })
+
+  it('failed source leaves existing cache data intact (invalidated but preserved)', async () => {
+    seedPhotosWidget(db, {
+      photos_source: 'apple',
+      icloud_album_url: 'https://www.icloud.com/sharedalbum/#TestAlbum',
+    })
+
+    // Pre-populate cache with old photos data
+    const futureExpiry = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    const oldPhotos = { photos: [{ id: 'old1', url: 'https://example.com/old.jpg' }] }
+    db.prepare(
+      `INSERT INTO cache (source, data, fetched_at, expires_at)
+       VALUES (?, ?, ?, ?)`
+    ).run('apple_photos_TestAlbum', JSON.stringify(oldPhotos), new Date().toISOString(), futureExpiry)
+
+    // Force refresh will fail
+    vi.mocked(fetchApplePhotos).mockRejectedValue(new Error('Album not found'))
+
+    const logger = { info: vi.fn(), error: vi.fn(), debug: vi.fn() }
+    await forceRefreshAll(db, config, logger)
+
+    // Cache entry should still exist with old data (but now expired)
+    const row = db.prepare("SELECT data, expires_at FROM cache WHERE source = 'apple_photos_TestAlbum'").get() as { data: string; expires_at: string } | undefined
+    expect(row).toBeDefined()
+    expect(JSON.parse(row!.data)).toEqual(oldPhotos)
+    // expires_at should be in the past (invalidated)
+    expect(new Date(row!.expires_at).getTime()).toBeLessThan(Date.now())
+  })
+
+  it('refetches even when cache is fresh', async () => {
+    seedWeatherWidget(db)
+
+    // Insert fresh cache
+    const futureExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    db.prepare(
+      `INSERT INTO cache (source, data, fetched_at, expires_at)
+       VALUES (?, ?, ?, ?)`
+    ).run('weather_40.7_-74', JSON.stringify({ current: { temperature: 60 }, daily: [] }), new Date().toISOString(), futureExpiry)
+
+    vi.mocked(fetchWeather).mockResolvedValue({ current: { temperature: 80 }, daily: [] } as never)
+
+    await forceRefreshAll(db, config)
+
+    // Should have fetched despite fresh cache
+    expect(fetchWeather).toHaveBeenCalledOnce()
+    const row = db.prepare("SELECT data FROM cache WHERE source = 'weather_40.7_-74'").get() as { data: string }
+    expect(JSON.parse(row.data).current.temperature).toBe(80)
   })
 })

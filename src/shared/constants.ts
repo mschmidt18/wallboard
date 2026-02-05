@@ -14,6 +14,7 @@ export const DEFAULT_TTLS = {
   calendar: 5 * 60,
   photos: 50 * 60,
   ics_calendar: 15 * 60,
+  apple_photos: 8 * 60 * 60,
 } as const;
 
 /** Session expiry in seconds (24 hours). */

@@ -60,3 +60,13 @@ export function isCacheFresh(db: Database.Database, source: string): boolean {
 
   return new Date() < new Date(row.expires_at)
 }
+
+/**
+ * Clear all cache entries by setting expires_at to the past.
+ * This forces the next refresh cycle to re-fetch all data.
+ */
+export function invalidateAllCache(db: Database.Database): number {
+  const pastDate = new Date(0).toISOString()
+  const result = db.prepare('UPDATE cache SET expires_at = ?').run(pastDate)
+  return result.changes
+}

@@ -6,6 +6,7 @@ import {
   getCacheMultiple,
   upsertCache,
   isCacheFresh,
+  invalidateAllCache,
 } from './cache.js'
 
 describe('cache queries', () => {
@@ -91,5 +92,57 @@ describe('cache queries', () => {
     upsertCache(db, 'weather_40.7_-74.0', { temp: 72 }, null)
 
     expect(isCacheFresh(db, 'weather_40.7_-74.0')).toBe(false)
+  })
+
+  test('invalidateAllCache sets all entries to expired', () => {
+    const futureExpiry = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    upsertCache(db, 'weather_40.7_-74.0', { temp: 72 }, futureExpiry)
+    upsertCache(db, 'google_calendar_primary_7', { events: [] }, futureExpiry)
+
+    expect(isCacheFresh(db, 'weather_40.7_-74.0')).toBe(true)
+    expect(isCacheFresh(db, 'google_calendar_primary_7')).toBe(true)
+
+    const changes = invalidateAllCache(db)
+    expect(changes).toBe(2)
+
+    expect(isCacheFresh(db, 'weather_40.7_-74.0')).toBe(false)
+    expect(isCacheFresh(db, 'google_calendar_primary_7')).toBe(false)
+  })
+
+  test('invalidateAllCache returns 0 when cache is empty', () => {
+    const changes = invalidateAllCache(db)
+    expect(changes).toBe(0)
+  })
+
+  test('invalidateAllCache handles already-expired entries', () => {
+    const pastExpiry = new Date(Date.now() - 1000).toISOString()
+    const futureExpiry = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    upsertCache(db, 'weather_expired', { temp: 60 }, pastExpiry)
+    upsertCache(db, 'weather_fresh', { temp: 72 }, futureExpiry)
+
+    expect(isCacheFresh(db, 'weather_expired')).toBe(false)
+    expect(isCacheFresh(db, 'weather_fresh')).toBe(true)
+
+    const changes = invalidateAllCache(db)
+    expect(changes).toBe(2)
+
+    expect(isCacheFresh(db, 'weather_expired')).toBe(false)
+    expect(isCacheFresh(db, 'weather_fresh')).toBe(false)
+  })
+
+  test('invalidateAllCache preserves data and fetched_at', () => {
+    const futureExpiry = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    const originalData = { temp: 72, humidity: 50 }
+    upsertCache(db, 'weather_40.7_-74.0', originalData, futureExpiry)
+
+    const beforeRow = getCache(db, 'weather_40.7_-74.0')
+    const originalFetchedAt = beforeRow!.fetched_at
+
+    invalidateAllCache(db)
+
+    const afterRow = getCache(db, 'weather_40.7_-74.0')
+    expect(afterRow).not.toBeNull()
+    expect(JSON.parse(afterRow!.data)).toEqual(originalData)
+    expect(afterRow!.fetched_at).toBe(originalFetchedAt)
   })
 })

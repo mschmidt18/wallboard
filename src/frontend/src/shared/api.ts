@@ -152,4 +152,8 @@ export const api = {
     }),
   deleteIcsCalendar: (id: number) =>
     request<void>(`/ics-calendars/${id}`, { method: "DELETE" }),
+  forceRefresh: () =>
+    request<{ status: string; refreshed: number; failed: number }>("/refresh", {
+      method: "POST",
+    }),
 };

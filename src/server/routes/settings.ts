@@ -1,8 +1,11 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync } from 'fs'
 import { dirname, join } from 'path'
 import type { FastifyInstance } from 'fastify'
+import type Database from 'better-sqlite3'
 import { hashPassword, verifyPassword, createSessionToken } from '../auth.js'
 import { addSession, removeSession, requireAuth } from '../middleware/auth.js'
+import { forceRefreshAll } from '../services/refresh.js'
+import type { Config } from '../config.js'
 import {
   PasswordBodySchema,
   ChangePasswordBodySchema,
@@ -42,7 +45,8 @@ function saveSettings(config: { dbPath: string }, settings: Record<string, unkno
 }
 
 export async function settingsRoutes(app: FastifyInstance): Promise<void> {
-  const config = (app as unknown as { config: { dbPath: string } }).config
+  const config = (app as unknown as { config: Config }).config
+  const db = (app as unknown as { db: Database.Database }).db
 
   // --- Auth endpoints ---
 
@@ -145,5 +149,24 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
     }
     saveSettings(config, settings)
     return { status: 'ok' }
+  })
+
+  // --- Refresh endpoint ---
+
+  app.post('/api/refresh', {
+    preHandler: [requireAuth],
+  }, async (request) => {
+    request.log.info('Force refresh requested')
+    const result = await forceRefreshAll(db, config, {
+      info: (msg) => request.log.info(msg),
+      error: (msg) => request.log.error(msg),
+      debug: (msg) => request.log.debug(msg),
+    })
+    request.log.info({ ...result }, 'Force refresh completed')
+    return {
+      status: 'ok',
+      refreshed: result.refreshed,
+      failed: result.failed,
+    }
   })
 }

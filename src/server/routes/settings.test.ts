@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach } from 'vitest'
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtempSync, statSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -428,5 +428,123 @@ describe('settings routes', () => {
       headers: { cookie },
     })
     expect(deniedResp.statusCode).toBe(401)
+  })
+
+  // --- Refresh endpoint ---
+
+  test('POST /api/refresh requires authentication', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/refresh',
+    })
+    expect(response.statusCode).toBe(401)
+  })
+
+  test('POST /api/refresh returns success with no data sources', async () => {
+    await setupPassword()
+    const { cookie } = await login()
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/refresh',
+      headers: { cookie },
+    })
+    expect(response.statusCode).toBe(200)
+    const data = response.json()
+    expect(data.status).toBe('ok')
+    expect(data.refreshed).toBe(0)
+    expect(data.failed).toBe(0)
+  })
+
+  test('POST /api/refresh refreshes data sources and updates cache', async () => {
+    await setupPassword()
+    const { cookie } = await login()
+
+    // Seed a weather widget
+    const now = new Date().toISOString()
+    db.prepare(
+      `INSERT INTO layouts (name, columns, row_height, is_active, theme, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run('Test', 12, 80, 1, '{}', now, now)
+    const layout = db.prepare('SELECT id FROM layouts WHERE is_active = 1').get() as { id: number }
+    db.prepare(
+      `INSERT INTO widgets (layout_id, widget_type, config, position_x, position_y, width, height, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(layout.id, 'weather', JSON.stringify({ lat: 40.7, lon: -74.0, units: 'imperial' }), 0, 0, 4, 3, now, now)
+
+    // Pre-populate cache with old data
+    const futureExpiry = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    db.prepare(
+      `INSERT INTO cache (source, data, fetched_at, expires_at)
+       VALUES (?, ?, ?, ?)`
+    ).run('weather_40.7_-74', JSON.stringify({ current: { temperature: 60 }, daily: [] }), now, futureExpiry)
+
+    // Mock fetch to return new data
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        current: { temperature_2m: 72, weather_code: 0 },
+        daily: { time: [], temperature_2m_max: [], temperature_2m_min: [], weather_code: [] },
+      }),
+    })
+
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/refresh',
+        headers: { cookie },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const data = response.json()
+      expect(data.status).toBe('ok')
+      expect(data.refreshed).toBe(1)
+      expect(data.failed).toBe(0)
+
+      // Verify cache was updated with new temperature
+      const row = db.prepare("SELECT data FROM cache WHERE source = 'weather_40.7_-74'").get() as { data: string }
+      const cached = JSON.parse(row.data)
+      expect(cached.current.temperature).toBe(72)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  test('POST /api/refresh reports partial failures', async () => {
+    await setupPassword()
+    const { cookie } = await login()
+
+    // Seed a weather widget
+    const now = new Date().toISOString()
+    db.prepare(
+      `INSERT INTO layouts (name, columns, row_height, is_active, theme, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run('Test', 12, 80, 1, '{}', now, now)
+    const layout = db.prepare('SELECT id FROM layouts WHERE is_active = 1').get() as { id: number }
+    db.prepare(
+      `INSERT INTO widgets (layout_id, widget_type, config, position_x, position_y, width, height, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(layout.id, 'weather', JSON.stringify({ lat: 40.7, lon: -74.0, units: 'imperial' }), 0, 0, 4, 3, now, now)
+
+    // Mock fetch to fail
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/refresh',
+        headers: { cookie },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const data = response.json()
+      expect(data.status).toBe('ok')
+      expect(data.refreshed).toBe(0)
+      expect(data.failed).toBe(1)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 })

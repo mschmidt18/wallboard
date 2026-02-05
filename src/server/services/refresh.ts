@@ -3,7 +3,7 @@ import { dirname, join } from 'path'
 import type Database from 'better-sqlite3'
 import type { Config } from '../config.js'
 import { DEFAULT_TTLS } from '@shared/constants.js'
-import { isCacheFresh, upsertCache } from '../db/queries/cache.js'
+import { isCacheFresh, upsertCache, invalidateAllCache } from '../db/queries/cache.js'
 import { listIcsCalendars } from '../db/queries/ics-calendars.js'
 import { loadOrCreateKey } from './encryption.js'
 import { getValidAccessToken } from './google-auth.js'
@@ -11,9 +11,10 @@ import { fetchWeather } from './weather.js'
 import { fetchEvents } from './google-calendar.js'
 import { getSessionMediaItems } from './google-photos.js'
 import { fetchIcsEvents } from './ical-service.js'
+import { fetchApplePhotos, extractAlbumToken } from './apple-photos.js'
 
 interface DataSource {
-  type: 'weather' | 'calendar' | 'photos' | 'ics_calendar'
+  type: 'weather' | 'calendar' | 'photos' | 'ics_calendar' | 'apple_photos'
   key: string
   params: Record<string, unknown>
   interval: number // seconds
@@ -155,8 +156,26 @@ export function collectDataSources(db: Database.Database): DataSource[] {
         }
       }
     } else if (widget.widget_type === 'photos') {
+      const photosSource = config.photos_source as string | undefined
       const pickerSessionId = config.picker_session_id
-      if (pickerSessionId) {
+      const icloudAlbumUrl = config.icloud_album_url as string | undefined
+
+      if (photosSource === 'apple' && icloudAlbumUrl) {
+        // Apple iCloud Photos
+        const token = extractAlbumToken(icloudAlbumUrl)
+        if (token) {
+          const key = `apple_photos_${token}`
+          if (!sources.has(key)) {
+            sources.set(key, {
+              type: 'apple_photos',
+              key,
+              params: { icloud_album_url: icloudAlbumUrl },
+              interval: DEFAULT_TTLS.apple_photos,
+            })
+          }
+        }
+      } else if (pickerSessionId) {
+        // Google Photos (explicit source='google' or legacy without photos_source)
         const key = `google_photos_picker_${pickerSessionId}`
         if (!sources.has(key)) {
           sources.set(key, {
@@ -240,6 +259,10 @@ export async function fetchSource(
       params.color as string,
     )
     return { events }
+  } else if (type === 'apple_photos') {
+    const albumUrl = params.icloud_album_url as string
+    const photos = await fetchApplePhotos(albumUrl)
+    return { photos }
   }
 
   return null
@@ -273,6 +296,42 @@ export async function refreshOnce(
       logger?.error(`Failed to refresh ${source.key}: ${err}`)
     }
   }
+}
+
+/**
+ * Force refresh all data sources, bypassing cache freshness checks.
+ * Returns the number of sources refreshed.
+ */
+export async function forceRefreshAll(
+  db: Database.Database,
+  config: Config,
+  logger?: { info: (msg: string) => void; error: (msg: string) => void; debug: (msg: string) => void },
+): Promise<{ refreshed: number; failed: number }> {
+  // Invalidate all cache entries
+  invalidateAllCache(db)
+  logger?.info('Cache invalidated, starting force refresh')
+
+  const sources = collectDataSources(db)
+  let refreshed = 0
+  let failed = 0
+
+  for (const source of sources) {
+    try {
+      const data = await fetchSource(source, db, config)
+      if (data != null) {
+        const now = new Date()
+        const expiresAt = new Date(now.getTime() + source.interval * 1000)
+        upsertCache(db, source.key, data, expiresAt.toISOString())
+        logger?.info(`Force refreshed ${source.key}`)
+        refreshed++
+      }
+    } catch (err) {
+      logger?.error(`Failed to force refresh ${source.key}: ${err}`)
+      failed++
+    }
+  }
+
+  return { refreshed, failed }
 }
 
 export interface RefreshHandle {

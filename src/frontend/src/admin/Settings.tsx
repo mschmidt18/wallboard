@@ -39,6 +39,8 @@ export default function Settings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState<FeedbackState>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshFeedback, setRefreshFeedback] = useState<FeedbackState>(null);
 
   useEffect(() => {
     loadSettings();
@@ -125,6 +127,26 @@ export default function Settings() {
     value: SettingsData[K],
   ) {
     setSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleForceRefresh() {
+    setRefreshing(true);
+    setRefreshFeedback(null);
+    try {
+      const result = await api.forceRefresh();
+      const message =
+        result.failed > 0
+          ? `Refreshed ${result.refreshed} source(s), ${result.failed} failed.`
+          : `Refreshed ${result.refreshed} data source(s).`;
+      setRefreshFeedback({ type: "success", message });
+    } catch {
+      setRefreshFeedback({
+        type: "error",
+        message: "Failed to refresh data. Check server logs.",
+      });
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   if (loading) {
@@ -227,6 +249,31 @@ export default function Settings() {
               </select>
               <p className="mt-1 text-xs text-gray-400">
                 How often the dashboard polls for updated data.
+              </p>
+            </div>
+            <div className="pt-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Manual Refresh
+              </label>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={handleForceRefresh}
+                  disabled={refreshing}
+                  className="py-2 px-4 bg-gray-100 text-gray-700 font-medium rounded-md border border-gray-300 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {refreshing ? "Refreshing..." : "Refresh All Data"}
+                </button>
+                {refreshFeedback && (
+                  <p
+                    className={`text-sm ${refreshFeedback.type === "success" ? "text-green-600" : "text-red-600"}`}
+                  >
+                    {refreshFeedback.message}
+                  </p>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                Force refresh all widget data (weather, calendars, photos).
               </p>
             </div>
           </div>

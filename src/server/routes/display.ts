@@ -5,6 +5,7 @@ import { getCacheMultiple } from '../db/queries/cache.js'
 import { listIcsCalendars } from '../db/queries/ics-calendars.js'
 import { loadOrCreateKey } from '../services/encryption.js'
 import { getValidAccessToken } from '../services/google-auth.js'
+import { extractAlbumToken } from '../services/apple-photos.js'
 import type { DisplayResponse, DisplayWidgetResponse } from '@shared/types.js'
 
 interface WidgetRow {
@@ -74,8 +75,17 @@ export function getCacheKey(widget: { widget_type: string; config: Record<string
     const daysAhead = (config.days_ahead as number) ?? 7
     return `google_calendar_${sortedIds.join('_')}_${daysAhead}`
   } else if (widget_type === 'photos') {
+    const photosSource = config.photos_source as string | undefined
     const pickerSessionId = config.picker_session_id
-    if (pickerSessionId) {
+    const icloudAlbumUrl = config.icloud_album_url as string | undefined
+
+    if (photosSource === 'apple' && icloudAlbumUrl) {
+      const token = extractAlbumToken(icloudAlbumUrl)
+      if (token) {
+        return `apple_photos_${token}`
+      }
+    } else if (pickerSessionId) {
+      // Google Photos (explicit source='google' or legacy without photos_source)
       return `google_photos_picker_${pickerSessionId}`
     }
   }

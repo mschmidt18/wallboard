@@ -335,4 +335,38 @@ describe('display helper functions', () => {
     expect(getCacheKey({ widget_type: 'calendar', config: { calendar_sources: [{ type: 'google', id: 'primary' }] } }))
       .toBeNull()
   })
+
+  it('getCacheKey returns apple_photos key for apple source', () => {
+    expect(getCacheKey({
+      widget_type: 'photos',
+      config: {
+        photos_source: 'apple',
+        icloud_album_url: 'https://www.icloud.com/sharedalbum/#B0z5qAGN1JIFd3y',
+      },
+    })).toBe('apple_photos_B0z5qAGN1JIFd3y')
+  })
+
+  it('getCacheKey returns google_photos key for google source', () => {
+    expect(getCacheKey({
+      widget_type: 'photos',
+      config: {
+        photos_source: 'google',
+        picker_session_id: 'sess123',
+      },
+    })).toBe('google_photos_picker_sess123')
+  })
+
+  it('getCacheKey returns null for photos widget without source', () => {
+    expect(getCacheKey({ widget_type: 'photos', config: {} })).toBeNull()
+    expect(getCacheKey({ widget_type: 'photos', config: { photos_source: 'apple' } })).toBeNull()
+    expect(getCacheKey({ widget_type: 'photos', config: { photos_source: 'google' } })).toBeNull()
+  })
+
+  it('getCacheKey handles legacy photos widget without photos_source field', () => {
+    // Legacy widgets have picker_session_id but no photos_source
+    expect(getCacheKey({
+      widget_type: 'photos',
+      config: { picker_session_id: 'legacy_sess' },
+    })).toBe('google_photos_picker_legacy_sess')
+  })
 })
