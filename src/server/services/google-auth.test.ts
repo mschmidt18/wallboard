@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import * as crypto from 'node:crypto'
 import { createTestDb } from '@server/db/connection.js'
 import { upsertIntegration } from '@server/db/queries/integrations.js'
-import { encrypt, generateKey } from '@server/services/encryption.js'
+import { encrypt } from '@server/services/encryption.js'
 import {
   buildAuthUrl,
   exchangeCode,
@@ -89,7 +90,7 @@ describe('google-auth', () => {
 
     beforeEach(() => {
       db = createTestDb()
-      key = generateKey()
+      key = crypto.randomBytes(32)
     })
 
     afterEach(() => {

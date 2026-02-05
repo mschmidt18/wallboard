@@ -80,7 +80,7 @@ src/
       display.ts         # GET /api/display (merges layout + cache), photo proxy
       system.ts          # Version info, check-update, self-update (git-based)
     services/
-      encryption.ts      # Manual Fernet implementation (Node crypto, Python-compatible)
+      encryption.ts      # AES-256-GCM encryption (Node crypto)
       geocoding.ts       # Zip code → lat/lon via zippopotam.us
       weather.ts         # Open-Meteo API
       google-auth.ts     # OAuth URL, code exchange, token refresh
@@ -110,7 +110,7 @@ src/
 
 **Auth:** bcryptjs for password hashing. In-memory `Map<string, number>` session store (token → expiry). `requireAuth` preHandler reads `session` cookie. Settings stored as JSON file at `~/.wallboard/settings.json` with 0o600 permissions.
 
-**Encryption:** Manual Fernet implementation (~50 LOC using Node `crypto`), compatible with existing Python-encrypted tokens. Used for storing Google OAuth credentials.
+**Encryption:** AES-256-GCM using Node `crypto`. Used for storing Google OAuth credentials.
 
 **Background refresh:** `setTimeout`-based loop (prevents overlap). Collects data sources from widgets, deduplicates by cache key, fetches stale sources. TTLs: weather 30min, calendar 5min, photos 50min, ICS 15min.
 
