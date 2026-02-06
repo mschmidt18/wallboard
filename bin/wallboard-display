@@ -48,4 +48,4 @@ exec /usr/bin/xinit /bin/bash -c "
         --check-for-update-interval=31536000 \
         --autoplay-policy=no-user-gesture-required \
         $WALLBOARD_URL
-" -- :0 vt1
+" -- :0 vt7

@@ -86,7 +86,7 @@ if $INSTALL_DISPLAY; then
     fi
     success "Chromium installed"
 
-    apt-get install -y -qq xorg openbox curl > /dev/null
+    apt-get install -y -qq xorg openbox xserver-xorg-legacy xauth curl > /dev/null
     success "X server (xorg + openbox) installed"
 
     # Allow non-root users to start X (required for wallboard-display.service)
