@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# wallboard-display - Launch Chromium in kiosk mode on a local X server
+#
+# Called by wallboard-display.service. Not intended to be run manually.
+#
+
+set -euo pipefail
+
+WALLBOARD_URL="http://localhost:8000"
+
+# Detect Chromium binary (chromium-browser on Raspberry Pi OS, chromium on Debian)
+if command -v chromium-browser &> /dev/null; then
+    CHROMIUM="chromium-browser"
+elif command -v chromium &> /dev/null; then
+    CHROMIUM="chromium"
+else
+    echo "ERROR: Chromium not found" >&2
+    exit 1
+fi
+
+# Wait for the wallboard server to be reachable before launching the browser
+for i in $(seq 1 30); do
+    if curl -sf http://localhost:8000/api/health > /dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+
+# Start X server with Chromium kiosk via xinit
+exec /usr/bin/xinit /bin/bash -c "
+    xset s off
+    xset -dpms
+    xset s noblank
+    openbox-session &
+    sleep 1
+    $CHROMIUM \
+        --kiosk \
+        --no-first-run \
+        --noerrdialogs \
+        --disable-infobars \
+        --disable-translate \
+        --disable-sync \
+        --disable-session-crashed-bubble \
+        --disable-component-update \
+        --no-sandbox \
+        --disable-features=TranslateUI \
+        --check-for-update-interval=31536000 \
+        --autoplay-policy=no-user-gesture-required \
+        $WALLBOARD_URL
+" -- :0 vt1

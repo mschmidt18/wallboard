@@ -86,8 +86,16 @@ if $INSTALL_DISPLAY; then
     fi
     success "Chromium installed"
 
-    apt-get install -y -qq xorg openbox > /dev/null
+    apt-get install -y -qq xorg openbox curl > /dev/null
     success "X server (xorg + openbox) installed"
+
+    # Allow non-root users to start X (required for wallboard-display.service)
+    mkdir -p /etc/X11
+    cat > /etc/X11/Xwrapper.config << 'XWRAP'
+allowed_users=anybody
+needs_root_rights=yes
+XWRAP
+    success "Xwrapper configured (allowed_users=anybody)"
 else
     success "Skipping Chromium and X server (--test mode)"
 fi
@@ -125,8 +133,9 @@ if $INSTALL_DISPLAY; then
     # Ensure groups exist (present on real hardware via udev, may be missing in containers)
     getent group video > /dev/null || groupadd --system video
     getent group input > /dev/null || groupadd --system input
-    usermod -aG video,input "$SERVICE_USER"
-    success "Added $SERVICE_USER to video and input groups"
+    getent group tty   > /dev/null || groupadd --system tty
+    usermod -aG video,input,tty "$SERVICE_USER"
+    success "Added $SERVICE_USER to video, input, and tty groups"
 fi
 
 WALLBOARD_DATA="/home/$SERVICE_USER/.wallboard"
@@ -204,7 +213,7 @@ fi
 
 info "Step 6/9: Installing systemd services..."
 
-for f in system/wallboard-server.service system/wallboard-display.service bin/wallboard; do
+for f in system/wallboard-server.service system/wallboard-display.service bin/wallboard bin/wallboard-display; do
     [ -f "$INSTALL_DIR/$f" ] || error_exit "Missing required file: $INSTALL_DIR/$f"
 done
 
@@ -225,6 +234,9 @@ info "Step 7/9: Installing wallboard CLI..."
 cp "$INSTALL_DIR/bin/wallboard" /usr/local/bin/wallboard
 chmod +x /usr/local/bin/wallboard
 success "CLI installed to /usr/local/bin/wallboard"
+
+chmod +x "$INSTALL_DIR/bin/wallboard-display"
+success "Display launcher script ready"
 
 # ---------------------------------------------------------------------------
 # Step 8: Configure log rotation
@@ -257,8 +269,8 @@ info "Step 9/9: Starting services..."
 
 if ! $TEST_MODE; then
     systemctl enable wallboard-server.service wallboard-display.service
-    systemctl start wallboard-server.service
-    systemctl start wallboard-display.service
+    systemctl restart wallboard-server.service
+    systemctl restart wallboard-display.service
     success "Services enabled and started"
 else
     success "Skipping service start (test mode)"

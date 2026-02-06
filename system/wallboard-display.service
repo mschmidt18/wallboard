@@ -1,33 +1,25 @@
 [Unit]
 Description=Wallboard Display (Kiosk Browser)
-After=wallboard-server.service
+After=wallboard-server.service network-online.target
 Requires=wallboard-server.service
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=wallboard
 Group=wallboard
-SupplementaryGroups=video input
-Environment=DISPLAY=:0
-ExecStart=/bin/bash -c '\
-  /usr/bin/xinit /bin/bash -c "\
-    xset s off && \
-    xset -dpms && \
-    xset s noblank && \
-    openbox-session & \
-    sleep 1 && \
-    /usr/bin/chromium-browser \
-      --kiosk \
-      --noerrdialogs \
-      --disable-infobars \
-      --no-first-run \
-      http://localhost:8000 \
-  " -- :0 vt1'
-Restart=on-failure
-RestartSec=10
+SupplementaryGroups=video input tty
+TTYPath=/dev/tty1
+StandardInput=tty
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=wallboard-display
+PAMName=login
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/0
+ExecStart=/opt/wallboard/bin/wallboard-display
+Restart=on-failure
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
