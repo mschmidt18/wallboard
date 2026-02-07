@@ -95,6 +95,20 @@ describe('SPA middleware', () => {
     const response = await app.inject({ method: 'GET', url: '/favicon.ico' })
     expect(response.statusCode).toBe(200)
     expect(response.body).toBe('ICON_DATA')
+    expect(response.headers['content-type']).toContain('image/x-icon')
+  })
+
+  it('serves SVG files with correct MIME type', async () => {
+    mkdirSync(join(distPath, 'weather-icons'), { recursive: true })
+    writeFileSync(join(distPath, 'weather-icons', 'clear-day.svg'), '<svg></svg>')
+
+    const app = Fastify()
+    await app.register(spaRoutes, { distPath })
+
+    const response = await app.inject({ method: 'GET', url: '/weather-icons/clear-day.svg' })
+    expect(response.statusCode).toBe(200)
+    expect(response.body).toBe('<svg></svg>')
+    expect(response.headers['content-type']).toContain('image/svg+xml')
   })
 
   it('is a no-op when dist directory does not exist', async () => {

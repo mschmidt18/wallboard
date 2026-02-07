@@ -1,8 +1,22 @@
-import { resolve, join } from 'path'
+import { resolve, join, extname } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import type { FastifyInstance } from 'fastify'
 import fp from 'fastify-plugin'
 import fastifyStatic from '@fastify/static'
+
+const MIME_TYPES: Record<string, string> = {
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.json': 'application/json',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.html': 'text/html',
+}
 
 export interface SpaOptions {
   /** Override the frontend dist directory path (for testing). */
@@ -62,7 +76,8 @@ async function spaMiddleware(app: FastifyInstance, opts: SpaOptions): Promise<vo
         existsSync(requestedPath)
       ) {
         // Serve the actual file if it exists within the dist directory
-        reply.type('text/html').send(readFileSync(requestedPath))
+        const mime = MIME_TYPES[extname(requestedPath)] ?? 'application/octet-stream'
+        reply.type(mime).send(readFileSync(requestedPath))
         return
       }
     }
