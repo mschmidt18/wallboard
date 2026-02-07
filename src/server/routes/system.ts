@@ -84,22 +84,28 @@ export async function systemRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/system/update', {
     preHandler: [requireAuth],
   }, async (): Promise<UpdateResponse> => {
-    const steps: [string, string][] = [
-      ['git pull', 'git pull'],
-      ['npm install', 'npm install'],
-      ['npm build', 'npm run build'],
-      ['restart service', 'systemctl restart wallboard-server'],
+    // Override NODE_ENV for install/build steps — the server inherits
+    // NODE_ENV=production from systemd, which causes npm install to
+    // prune devDependencies (tsc, vite, etc.) from node_modules.
+    const buildEnv = { ...process.env, NODE_ENV: 'development' }
+
+    const steps: [string, string, NodeJS.ProcessEnv | undefined][] = [
+      ['git pull', 'git pull', undefined],
+      ['npm install', 'npm install', buildEnv],
+      ['npm build', 'npm run build', buildEnv],
+      ['restart service', 'systemctl restart wallboard-server', undefined],
     ]
 
     const stepsCompleted: string[] = []
 
-    for (const [stepName, cmd] of steps) {
+    for (const [stepName, cmd, env] of steps) {
       try {
         execSync(cmd, {
           cwd: PROJECT_ROOT,
           timeout: 120_000,
           encoding: 'utf-8',
           stdio: ['pipe', 'pipe', 'pipe'],
+          ...(env && { env }),
         })
         stepsCompleted.push(stepName)
       } catch (e: unknown) {
