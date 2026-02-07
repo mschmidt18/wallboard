@@ -39,18 +39,34 @@ function getDayName(dateStr: string): string {
   return date.toLocaleDateString("en-US", { weekday: "short" });
 }
 
-function weatherIcon(code: number): string {
-  // WMO weather codes mapped to simple emoji-like text symbols
-  if (code === 0) return "\u2600"; // clear sky
-  if (code <= 3) return "\u26C5"; // partly cloudy
-  if (code <= 49) return "\u2601"; // fog/cloudy
-  if (code <= 59) return "\uD83C\uDF27"; // drizzle
-  if (code <= 69) return "\uD83C\uDF27"; // rain
-  if (code <= 79) return "\uD83C\uDF28"; // snow
-  if (code <= 82) return "\uD83C\uDF27"; // rain showers
-  if (code <= 86) return "\uD83C\uDF28"; // snow showers
-  if (code >= 95) return "\u26C8"; // thunderstorm
-  return "\u2601";
+// WMO weather codes → Bas Milius animated weather icon filenames
+// https://github.com/basmilius/weather-icons (MIT license)
+function weatherIconName(code: number): string {
+  if (code === 0) return "clear-day";
+  if (code <= 2) return "partly-cloudy-day";
+  if (code === 3) return "overcast";
+  if (code <= 48) return "fog";
+  if (code <= 55) return "drizzle";
+  if (code <= 57) return "sleet";
+  if (code <= 65) return "rain";
+  if (code <= 67) return "sleet";
+  if (code <= 77) return "snow";
+  if (code <= 82) return "overcast-rain";
+  if (code <= 86) return "overcast-snow";
+  if (code === 95) return "thunderstorms";
+  if (code >= 96) return "thunderstorms-rain";
+  return "not-available";
+}
+
+function WeatherIcon({ code, size }: { code: number; size: string }) {
+  return (
+    <img
+      src={`/weather-icons/${weatherIconName(code)}.svg`}
+      alt=""
+      style={{ width: size, height: size }}
+      draggable={false}
+    />
+  );
 }
 
 export default function WeatherWidget({ data }: WeatherWidgetProps) {
@@ -70,7 +86,7 @@ export default function WeatherWidget({ data }: WeatherWidgetProps) {
     <div className="h-full flex flex-col text-white p-4 overflow-hidden">
       {/* Current conditions */}
       <div className="flex-1 flex flex-col items-center justify-center min-h-0">
-        <div className="text-3xl mb-1">{weatherIcon(current.weather_code)}</div>
+        <div className="mb-1"><WeatherIcon code={current.weather_code} size="64px" /></div>
         <div className="text-6xl font-light tracking-tight">
           {Math.round(current.temperature)}{unitSymbol}
         </div>
@@ -91,7 +107,7 @@ export default function WeatherWidget({ data }: WeatherWidgetProps) {
               className="flex flex-col items-center text-xs text-white/70 min-w-0"
             >
               <span className="font-medium text-white/90">{getDayName(day.date)}</span>
-              <span className="text-base my-0.5">{weatherIcon(day.weather_code)}</span>
+              <span className="my-0.5"><WeatherIcon code={day.weather_code} size="28px" /></span>
               <span className="text-white">{Math.round(day.high)}&deg;</span>
               <span className="text-white/50">{Math.round(day.low)}&deg;</span>
             </div>
