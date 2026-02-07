@@ -133,7 +133,7 @@ export default function Dashboard() {
               gridRow: `${widget.position_y + 1} / span ${widget.height}`,
               backgroundColor: widgetBg,
             }}
-            className="rounded-lg overflow-hidden"
+            className="@container rounded-lg overflow-hidden"
           >
             <WidgetRenderer widget={widget} />
           </div>

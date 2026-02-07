@@ -5,18 +5,45 @@ interface Props {
   onChange: (config: Record<string, unknown>) => void;
 }
 
+const FORECAST_OPTIONS = [
+  { value: 1, label: "1 (today only)" },
+  { value: 3, label: "3" },
+  { value: 4, label: "4" },
+  { value: 5, label: "5" },
+] as const;
+
+function normalizeForecastDays(value: number): number {
+  const allowed = FORECAST_OPTIONS.map((o) => o.value);
+  if (allowed.includes(value as (typeof allowed)[number])) return value;
+  return allowed.reduce((closest, v) =>
+    Math.abs(v - value) < Math.abs(closest - value) ? v : closest,
+  );
+}
+
 export default function WeatherConfig({ config, onChange }: Props) {
   const [zipCode, setZipCode] = useState<string>((config.zip_code as string | undefined) ?? "");
   const [units, setUnits] = useState<string>((config.units as string | undefined) ?? "imperial");
+  const [forecastDays, setForecastDays] = useState<number>(
+    normalizeForecastDays((config.forecast_days as number | undefined) ?? 3),
+  );
+
+  function emit(patch: Record<string, unknown>) {
+    onChange({ ...config, zip_code: zipCode, units, forecast_days: forecastDays, ...patch });
+  }
 
   function handleZipChange(value: string) {
     setZipCode(value);
-    onChange({ ...config, zip_code: value, units });
+    emit({ zip_code: value });
   }
 
   function handleUnitsChange(value: string) {
     setUnits(value);
-    onChange({ ...config, zip_code: zipCode, units: value });
+    emit({ units: value });
+  }
+
+  function handleForecastDaysChange(value: number) {
+    setForecastDays(value);
+    emit({ forecast_days: value });
   }
 
   return (
@@ -65,6 +92,25 @@ export default function WeatherConfig({ config, onChange }: Props) {
             />
             Metric (C)
           </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className="block text-sm font-medium text-gray-700 mb-2">Forecast days</legend>
+        <div className="flex items-center gap-4">
+          {FORECAST_OPTIONS.map((opt) => (
+            <label key={opt.value} className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                name="weather-forecast-days"
+                value={opt.value}
+                checked={forecastDays === opt.value}
+                onChange={() => handleForecastDaysChange(opt.value)}
+                className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              {opt.label}
+            </label>
+          ))}
         </div>
       </fieldset>
     </div>
