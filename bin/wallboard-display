@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# wallboard-display - Launch Chromium in kiosk mode on a local X server
+# wallboard-display - Launch Chromium in kiosk mode via cage (Wayland)
 #
 # Called by wallboard-display.service. Not intended to be run manually.
 #
@@ -27,25 +27,16 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
-# Start X server with Chromium kiosk via xinit
-exec /usr/bin/xinit /bin/bash -c "
-    xset s off
-    xset -dpms
-    xset s noblank
-    openbox-session &
-    sleep 1
-    $CHROMIUM \
-        --kiosk \
-        --no-first-run \
-        --noerrdialogs \
-        --disable-infobars \
-        --disable-translate \
-        --disable-sync \
-        --disable-session-crashed-bubble \
-        --disable-component-update \
-        --no-sandbox \
-        --disable-features=TranslateUI \
-        --check-for-update-interval=31536000 \
-        --autoplay-policy=no-user-gesture-required \
-        $WALLBOARD_URL
-" -- :0 vt7
+# Prevent cage from failing if no input devices are connected
+export WLR_LIBINPUT_NO_DEVICES=1
+
+# Launch Chromium kiosk inside cage (Wayland kiosk compositor)
+exec cage -d -s -- $CHROMIUM \
+    --kiosk \
+    --no-first-run \
+    --noerrdialogs \
+    --disable-infobars \
+    --no-sandbox \
+    --ozone-platform=wayland \
+    --disable-features=TranslateUI \
+    $WALLBOARD_URL

@@ -8,15 +8,16 @@ Wants=network-online.target
 Type=simple
 User=wallboard
 Group=wallboard
-SupplementaryGroups=video input tty
+SupplementaryGroups=video input render
+PAMName=login
 TTYPath=/dev/tty7
 StandardInput=tty
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=wallboard-display
-PAMName=login
-Environment=DISPLAY=:0
-Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment=XDG_RUNTIME_DIR=/tmp/wallboard-xdg
+ExecStartPre=/bin/mkdir -p /tmp/wallboard-xdg
+ExecStartPre=/bin/chown wallboard:wallboard /tmp/wallboard-xdg
 ExecStart=/opt/wallboard/bin/wallboard-display
 Restart=on-failure
 RestartSec=10

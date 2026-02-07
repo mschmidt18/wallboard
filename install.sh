@@ -8,7 +8,7 @@
 #
 # Flags:
 #   --test           Run in test/container mode (skip git clone, systemd, logrotate)
-#   --with-display   Install Chromium and X server (included by default, excluded by --test)
+#   --with-display   Install Chromium and cage kiosk compositor (included by default, excluded by --test)
 
 set -e
 
@@ -77,7 +77,7 @@ info "Step 1/9: Installing system dependencies..."
 
 apt-get update -qq
 
-# Chromium + X server (skip in test mode without --with-display)
+# Chromium + cage kiosk compositor (skip in test mode without --with-display)
 if $INSTALL_DISPLAY; then
     if apt-get install -y -qq chromium-browser > /dev/null 2>&1; then
         true
@@ -86,18 +86,10 @@ if $INSTALL_DISPLAY; then
     fi
     success "Chromium installed"
 
-    apt-get install -y -qq xorg openbox xserver-xorg-legacy xauth curl > /dev/null
-    success "X server (xorg + openbox) installed"
-
-    # Allow non-root users to start X (required for wallboard-display.service)
-    mkdir -p /etc/X11
-    cat > /etc/X11/Xwrapper.config << 'XWRAP'
-allowed_users=anybody
-needs_root_rights=yes
-XWRAP
-    success "Xwrapper configured (allowed_users=anybody)"
+    apt-get install -y -qq cage curl > /dev/null
+    success "Cage (Wayland kiosk compositor) installed"
 else
-    success "Skipping Chromium and X server (--test mode)"
+    success "Skipping Chromium and cage (--test mode)"
 fi
 
 # Node.js -- use NodeSource if not already present
@@ -128,14 +120,14 @@ else
     success "User $SERVICE_USER already exists"
 fi
 
-# Add video and input groups for X server and Chromium kiosk access
+# Add groups for DRM/GPU and input device access
 if $INSTALL_DISPLAY; then
     # Ensure groups exist (present on real hardware via udev, may be missing in containers)
-    getent group video > /dev/null || groupadd --system video
-    getent group input > /dev/null || groupadd --system input
-    getent group tty   > /dev/null || groupadd --system tty
-    usermod -aG video,input,tty "$SERVICE_USER"
-    success "Added $SERVICE_USER to video, input, and tty groups"
+    getent group video  > /dev/null || groupadd --system video
+    getent group input  > /dev/null || groupadd --system input
+    getent group render > /dev/null || groupadd --system render
+    usermod -aG video,input,render "$SERVICE_USER"
+    success "Added $SERVICE_USER to video, input, and render groups"
 fi
 
 WALLBOARD_DATA="/home/$SERVICE_USER/.wallboard"
