@@ -59,6 +59,10 @@ check "$INSTALL_DIR owned by $SERVICE_USER" \
 check "$CONFIG_DIR owned by root" \
     test "$(stat -c '%U' "$CONFIG_DIR")" = "root"
 
+CONFIG_PERMS=$(stat -c '%a' "$CONFIG_DIR")
+check "$CONFIG_DIR permissions are 750" \
+    test "$CONFIG_PERMS" = "750"
+
 check "$WALLBOARD_DATA owned by $SERVICE_USER" \
     test "$(stat -c '%U' "$WALLBOARD_DATA")" = "$SERVICE_USER"
 
@@ -113,7 +117,27 @@ check "CLI at /usr/local/bin/wallboard" test -f /usr/local/bin/wallboard
 check "CLI is executable" test -x /usr/local/bin/wallboard
 
 # -------------------------------------------------------------------------
-# 9. Server starts and responds to health check
+# 9. Display launcher script
+# -------------------------------------------------------------------------
+check "wallboard-display script exists" \
+    test -f "$INSTALL_DIR/bin/wallboard-display"
+check "wallboard-display script is executable" \
+    test -x "$INSTALL_DIR/bin/wallboard-display"
+
+# -------------------------------------------------------------------------
+# 10. Display packages (only when --with-display was used)
+# -------------------------------------------------------------------------
+if command -v cage > /dev/null 2>&1; then
+    check "cage (Wayland kiosk compositor) installed" command -v cage
+    if command -v chromium-browser > /dev/null 2>&1; then
+        check "Chromium installed (chromium-browser)" command -v chromium-browser
+    else
+        check "Chromium installed (chromium)" command -v chromium
+    fi
+fi
+
+# -------------------------------------------------------------------------
+# 11. Server starts and responds to health check
 # -------------------------------------------------------------------------
 echo ""
 echo "--- Starting server for health check ---"
