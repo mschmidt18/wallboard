@@ -8,7 +8,6 @@ set -e
 
 INSTALL_DIR="/opt/wallboard"
 CONFIG_DIR="/etc/wallboard"
-LOG_DIR="/var/log/wallboard"
 SERVICE_USER="wallboard"
 WALLBOARD_DATA="/home/$SERVICE_USER/.wallboard"
 
@@ -47,7 +46,7 @@ check "wallboard user exists" id -u "$SERVICE_USER"
 # -------------------------------------------------------------------------
 # 2. Required directories exist
 # -------------------------------------------------------------------------
-for dir in "$INSTALL_DIR" "$CONFIG_DIR" "$LOG_DIR" "$WALLBOARD_DATA"; do
+for dir in "$INSTALL_DIR" "$CONFIG_DIR" "$WALLBOARD_DATA"; do
     check "directory exists: $dir" test -d "$dir"
 done
 
@@ -56,9 +55,6 @@ done
 # -------------------------------------------------------------------------
 check "$INSTALL_DIR owned by $SERVICE_USER" \
     test "$(stat -c '%U' "$INSTALL_DIR")" = "$SERVICE_USER"
-
-check "$LOG_DIR owned by $SERVICE_USER" \
-    test "$(stat -c '%U' "$LOG_DIR")" = "$SERVICE_USER"
 
 check "$CONFIG_DIR owned by root" \
     test "$(stat -c '%U' "$CONFIG_DIR")" = "root"

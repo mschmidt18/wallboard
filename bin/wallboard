@@ -9,7 +9,6 @@
 set -euo pipefail
 
 INSTALL_DIR="/opt/wallboard"
-LOG_FILE="/var/log/wallboard/wallboard.log"
 SERVER_SERVICE="wallboard-server.service"
 DISPLAY_SERVICE="wallboard-display.service"
 WALLBOARD_USER="wallboard"
@@ -128,15 +127,10 @@ cmd_logs() {
         esac
     done
 
-    if [[ ! -f "$LOG_FILE" ]]; then
-        echo "Log file not found: $LOG_FILE" >&2
-        exit 1
-    fi
-
     if [[ "$follow" == true ]]; then
-        tail -f "$LOG_FILE"
+        journalctl -u "$SERVER_SERVICE" -f
     else
-        tail -100 "$LOG_FILE"
+        journalctl -u "$SERVER_SERVICE" -n 100 --no-pager
     fi
 }
 

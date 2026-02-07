@@ -10,7 +10,6 @@ describe('Config', () => {
 
     expect(config.dbPath).toBe(join(wallboardDir, 'wallboard.db'))
     expect(config.secretKeyPath).toBe(join(wallboardDir, 'secret.key'))
-    expect(config.logPath).toBe('/var/log/wallboard/wallboard.log')
     expect(config.logLevel).toBe('INFO')
     expect(config.displayRefreshInterval).toBe(60)
   })
@@ -21,7 +20,6 @@ describe('Config', () => {
 
     expect(config.dbPath).toBe(join(tmpDir, 'test.db'))
     expect(config.secretKeyPath).toBe(join(tmpDir, 'secret.key'))
-    expect(config.logPath).toBe(join(tmpDir, 'wallboard.log'))
     expect(config.logLevel).toBe('INFO')
     expect(config.displayRefreshInterval).toBe(60)
   })
@@ -30,14 +28,12 @@ describe('Config', () => {
     const config = new Config({
       dbPath: '/custom/db.sqlite',
       secretKeyPath: '/custom/key',
-      logPath: '/custom/log.txt',
       logLevel: 'DEBUG',
       displayRefreshInterval: 120,
     })
 
     expect(config.dbPath).toBe('/custom/db.sqlite')
     expect(config.secretKeyPath).toBe('/custom/key')
-    expect(config.logPath).toBe('/custom/log.txt')
     expect(config.logLevel).toBe('DEBUG')
     expect(config.displayRefreshInterval).toBe(120)
   })

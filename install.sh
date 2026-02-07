@@ -7,7 +7,7 @@
 # Must be run as root.
 #
 # Flags:
-#   --test           Run in test/container mode (skip git clone, systemd, logrotate)
+#   --test           Run in test/container mode (skip git clone, systemd)
 #   --with-display   Install Chromium and cage kiosk compositor (included by default, excluded by --test)
 
 set -e
@@ -15,7 +15,6 @@ set -e
 REPO_URL="https://github.com/mschmidt18/wallboard.git"
 INSTALL_DIR="/opt/wallboard"
 CONFIG_DIR="/etc/wallboard"
-LOG_DIR="/var/log/wallboard"
 SERVICE_USER="wallboard"
 
 # ---------------------------------------------------------------------------
@@ -73,7 +72,7 @@ info "Starting Wallboard installation..."
 # Step 1: Install system dependencies
 # ---------------------------------------------------------------------------
 
-info "Step 1/9: Installing system dependencies..."
+info "Step 1/8: Installing system dependencies..."
 
 apt-get update -qq
 
@@ -111,7 +110,7 @@ fi
 # Step 2: Create wallboard user and directory structure
 # ---------------------------------------------------------------------------
 
-info "Step 2/9: Creating wallboard user and directories..."
+info "Step 2/8: Creating wallboard user and directories..."
 
 if ! id -u "$SERVICE_USER" &> /dev/null; then
     useradd --system --create-home --shell /usr/sbin/nologin "$SERVICE_USER"
@@ -134,17 +133,17 @@ WALLBOARD_DATA="/home/$SERVICE_USER/.wallboard"
 mkdir -p "$WALLBOARD_DATA"
 chown "$SERVICE_USER":"$SERVICE_USER" "$WALLBOARD_DATA"
 
-mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$LOG_DIR"
-chown "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR" "$LOG_DIR"
+mkdir -p "$INSTALL_DIR" "$CONFIG_DIR"
+chown "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"
 chown root:root "$CONFIG_DIR"
 chmod 750 "$CONFIG_DIR"
-success "Directories created: $INSTALL_DIR, $CONFIG_DIR, $LOG_DIR"
+success "Directories created: $INSTALL_DIR, $CONFIG_DIR"
 
 # ---------------------------------------------------------------------------
 # Step 3: Clone repo and install Node.js dependencies
 # ---------------------------------------------------------------------------
 
-info "Step 3/9: Cloning repository and installing dependencies..."
+info "Step 3/8: Cloning repository and installing dependencies..."
 
 if $TEST_MODE; then
     # In test mode, copy source from build context instead of cloning
@@ -175,7 +174,7 @@ success "Node.js dependencies installed"
 # Step 4: Build server and frontend
 # ---------------------------------------------------------------------------
 
-info "Step 4/9: Building server and frontend..."
+info "Step 4/8: Building server and frontend..."
 
 cd "$INSTALL_DIR"
 npm run build --silent
@@ -186,7 +185,7 @@ success "Server and frontend built"
 # Step 5: Generate device-specific encryption key
 # ---------------------------------------------------------------------------
 
-info "Step 5/9: Generating encryption key..."
+info "Step 5/8: Generating encryption key..."
 
 SECRET_KEY_FILE="$CONFIG_DIR/secret.key"
 
@@ -203,7 +202,7 @@ fi
 # Step 6: Install systemd services
 # ---------------------------------------------------------------------------
 
-info "Step 6/9: Installing systemd services..."
+info "Step 6/8: Installing systemd services..."
 
 for f in system/wallboard-server.service system/wallboard-display.service bin/wallboard bin/wallboard-display; do
     [ -f "$INSTALL_DIR/$f" ] || error_exit "Missing required file: $INSTALL_DIR/$f"
@@ -221,7 +220,7 @@ success "Systemd services installed"
 # Step 7: Install wallboard CLI
 # ---------------------------------------------------------------------------
 
-info "Step 7/9: Installing wallboard CLI..."
+info "Step 7/8: Installing wallboard CLI..."
 
 cp "$INSTALL_DIR/bin/wallboard" /usr/local/bin/wallboard
 chmod +x /usr/local/bin/wallboard
@@ -231,33 +230,10 @@ chmod +x "$INSTALL_DIR/bin/wallboard-display"
 success "Display launcher script ready"
 
 # ---------------------------------------------------------------------------
-# Step 8: Configure log rotation
+# Step 8: Start services
 # ---------------------------------------------------------------------------
 
-info "Step 8/9: Configuring log rotation..."
-
-if ! $TEST_MODE; then
-    cat > /etc/logrotate.d/wallboard << 'LOGROTATE'
-/var/log/wallboard/wallboard.log {
-    daily
-    rotate 7
-    compress
-    delaycompress
-    missingok
-    notifempty
-    copytruncate
-}
-LOGROTATE
-    success "Logrotate configured (7-day retention)"
-else
-    success "Skipping logrotate (test mode)"
-fi
-
-# ---------------------------------------------------------------------------
-# Step 9: Start services
-# ---------------------------------------------------------------------------
-
-info "Step 9/9: Starting services..."
+info "Step 8/8: Starting services..."
 
 if ! $TEST_MODE; then
     systemctl enable wallboard-server.service wallboard-display.service
