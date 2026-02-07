@@ -182,6 +182,7 @@ describe('system routes', () => {
       expect(data.steps_completed).toContain('npm build')
       expect(data.steps_completed).toContain('restart service')
       expect(data.step_failed).toBeNull()
+      expect(data.error).toBeNull()
       expect(data.fallback_instructions).toBeNull()
     })
 
@@ -200,6 +201,7 @@ describe('system routes', () => {
       const data = resp.json()
       expect(data.status).toBe('error')
       expect(data.step_failed).toBe('restart service')
+      expect(data.error).toBeTruthy()
       expect(data.fallback_instructions).toBeTruthy()
       expect(data.steps_completed).toContain('git pull')
       expect(data.steps_completed).toContain('npm install')
@@ -221,6 +223,7 @@ describe('system routes', () => {
       const data = resp.json()
       expect(data.status).toBe('error')
       expect(data.step_failed).toBe('git pull')
+      expect(data.error).toBeTruthy()
       expect(data.steps_completed).toEqual([])
       expect(data.fallback_instructions).toBeTruthy()
     })

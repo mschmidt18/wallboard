@@ -102,11 +102,17 @@ export async function systemRoutes(app: FastifyInstance): Promise<void> {
           stdio: ['pipe', 'pipe', 'pipe'],
         })
         stepsCompleted.push(stepName)
-      } catch {
+      } catch (e: unknown) {
+        const err = e as { stderr?: string; message?: string; killed?: boolean }
+        let errorDetail = err.stderr?.trim() || err.message || 'Unknown error'
+        if (err.killed) {
+          errorDetail = `Process timed out after 120s`
+        }
         return {
           status: 'error',
           steps_completed: stepsCompleted,
           step_failed: stepName,
+          error: errorDetail,
           fallback_instructions:
             'SSH into the server and run manually:\n' +
             '  cd /opt/wallboard\n' +
@@ -122,6 +128,7 @@ export async function systemRoutes(app: FastifyInstance): Promise<void> {
       status: 'ok',
       steps_completed: stepsCompleted,
       step_failed: null,
+      error: null,
       fallback_instructions: null,
     }
   })

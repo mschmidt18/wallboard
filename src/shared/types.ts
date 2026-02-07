@@ -220,6 +220,7 @@ export interface UpdateResponse {
   status: string;
   steps_completed: string[];
   step_failed: string | null;
+  error: string | null;
   fallback_instructions: string | null;
 }
 

@@ -70,6 +70,7 @@ export default function About() {
         status: "error",
         steps_completed: [],
         step_failed: "request",
+        error: "Failed to reach server",
         fallback_instructions:
           "SSH into the server and run: cd /opt/wallboard && git pull && sudo systemctl restart wallboard-server",
       });
@@ -210,6 +211,11 @@ export default function About() {
                     ? ` at step: ${updateResult.step_failed}`
                     : ""}
                 </p>
+                {updateResult.error && (
+                  <pre className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-xs text-red-800 whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
+                    {updateResult.error}
+                  </pre>
+                )}
                 {updateResult.steps_completed.length > 0 && (
                   <ul className="mt-2 space-y-1">
                     {updateResult.steps_completed.map((step, i) => (
