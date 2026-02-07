@@ -122,6 +122,11 @@ export const api = {
     request<GoogleConnectResponse>("/integrations/google/connect", {
       method: "POST",
     }),
+  submitGoogleCode: (code: string) =>
+    request<{ success: boolean }>("/integrations/google/callback", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
   disconnectGoogle: () =>
     request<void>("/integrations/google", { method: "DELETE" }),
   getGoogleCalendars: () =>

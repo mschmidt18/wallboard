@@ -19,6 +19,30 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   const config = (app as unknown as { config: { dbPath: string; secretKeyPath: string } }).config
   const db = (app as unknown as { db: import('better-sqlite3').Database }).db
 
+  function getRedirectUri(host: string | undefined): string {
+    const hostStr = host || 'localhost:8000'
+    const portMatch = hostStr.match(/:(\d+)$/)
+    const port = portMatch ? portMatch[1] : '8000'
+    return `http://localhost:${port}/api/integrations/google/callback`
+  }
+
+  async function exchangeAndStoreTokens(code: string, redirectUri: string): Promise<void> {
+    const settings = loadSettings(config)
+    const clientId = (settings.google_client_id as string) || ''
+    const clientSecret = (settings.google_client_secret as string) || ''
+
+    const tokens = await exchangeCode(code, clientId, clientSecret, redirectUri)
+
+    const tokenData: Record<string, unknown> = { ...tokens }
+    if (tokens.expires_in && !tokenData.expires_at) {
+      tokenData.expires_at = Date.now() / 1000 + tokens.expires_in
+    }
+
+    const key = loadOrCreateKey(config.secretKeyPath)
+    const encrypted = encrypt(JSON.stringify(tokenData), key)
+    upsertIntegration(db, 'google', encrypted, 'connected')
+  }
+
   app.get('/api/integrations', {
     preHandler: [requireAuth],
   }, async () => {
@@ -34,10 +58,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       reply.code(400).send({ error: 'Google client ID not configured' })
       return
     }
-    const protocol = (request.headers['x-forwarded-proto'] as string) || request.protocol
-    const host = request.headers.host || 'localhost'
-    const baseUrl = `${protocol}://${host}`
-    const redirectUri = `${baseUrl}/api/integrations/google/callback`
+    const redirectUri = getRedirectUri(request.headers.host)
     const url = buildAuthUrl(clientId, redirectUri)
     return { auth_url: url }
   })
@@ -49,28 +70,43 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       return
     }
 
-    const settings = loadSettings(config)
-    const clientId = (settings.google_client_id as string) || ''
-    const clientSecret = (settings.google_client_secret as string) || ''
-    const protocol = (request.headers['x-forwarded-proto'] as string) || request.protocol
-    const host = request.headers.host || 'localhost'
-    const baseUrl = `${protocol}://${host}`
-    const redirectUri = `${baseUrl}/api/integrations/google/callback`
-
-    const tokens = await exchangeCode(code, clientId, clientSecret, redirectUri)
-
-    // Store expires_at as absolute timestamp for refresh logic
-    const tokenData: Record<string, unknown> = { ...tokens }
-    if (tokens.expires_in && !tokenData.expires_at) {
-      tokenData.expires_at = Date.now() / 1000 + tokens.expires_in
-    }
-
-    const key = loadOrCreateKey(config.secretKeyPath)
-    const encrypted = encrypt(JSON.stringify(tokenData), key)
-    upsertIntegration(db, 'google', encrypted, 'connected')
+    const redirectUri = getRedirectUri(request.headers.host)
+    await exchangeAndStoreTokens(code, redirectUri)
 
     request.log.info('Integration connected: google')
     reply.redirect('/admin/integrations?connected=true')
+  })
+
+  app.post<{ Body: { code?: string } }>('/api/integrations/google/callback', {
+    preHandler: [requireAuth],
+  }, async (request, reply) => {
+    let code = (request.body as { code?: string })?.code
+    if (!code) {
+      reply.code(400).send({ error: 'Missing code parameter' })
+      return
+    }
+
+    // If input looks like a full URL, extract the code query parameter
+    if (code.startsWith('http://') || code.startsWith('https://')) {
+      try {
+        const url = new URL(code)
+        const extracted = url.searchParams.get('code')
+        if (!extracted) {
+          reply.code(400).send({ error: 'Missing code parameter in URL' })
+          return
+        }
+        code = extracted
+      } catch {
+        reply.code(400).send({ error: 'Invalid URL' })
+        return
+      }
+    }
+
+    const redirectUri = getRedirectUri(request.headers.host)
+    await exchangeAndStoreTokens(code, redirectUri)
+
+    request.log.info('Integration connected: google')
+    return { success: true }
   })
 
   app.delete('/api/integrations/google', {

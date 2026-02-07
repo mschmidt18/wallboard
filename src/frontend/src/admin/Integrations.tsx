@@ -10,6 +10,9 @@ export default function Integrations() {
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [showCodeEntry, setShowCodeEntry] = useState(false);
+  const [manualCode, setManualCode] = useState("");
+  const [submittingCode, setSubmittingCode] = useState(false);
 
   // ICS calendar state
   const [icsCalendars, setIcsCalendars] = useState<IcsCalendar[]>([]);
@@ -49,12 +52,32 @@ export default function Integrations() {
   // Clear the ?connected=true param after showing success
   useEffect(() => {
     if (justConnected) {
+      setShowCodeEntry(false);
       const timer = setTimeout(() => {
         setSearchParams({}, { replace: true });
       }, 5000);
       return () => clearTimeout(timer);
     }
   }, [justConnected, setSearchParams]);
+
+  // Poll for connection when code entry is shown (handles localhost redirect case)
+  useEffect(() => {
+    if (!showCodeEntry) return;
+    const interval = setInterval(async () => {
+      try {
+        const data = await api.getIntegrations();
+        const g = data.find((i) => i.provider === "google");
+        if (g?.status === "connected") {
+          setShowCodeEntry(false);
+          setManualCode("");
+          setIntegrations(data);
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [showCodeEntry]);
 
   const google = integrations.find((i) => i.provider === "google");
   const isConnected = google?.status === "connected";
@@ -64,12 +87,30 @@ export default function Integrations() {
     setError(null);
     try {
       const { auth_url } = await api.connectGoogle();
-      window.location.href = auth_url;
+      window.open(auth_url, "_blank");
+      setShowCodeEntry(true);
     } catch {
       setError(
         "Failed to start Google connection. Make sure Google Client ID and Secret are configured in Settings."
       );
+    } finally {
       setConnecting(false);
+    }
+  }
+
+  async function handleSubmitCode() {
+    if (!manualCode.trim()) return;
+    setSubmittingCode(true);
+    setError(null);
+    try {
+      await api.submitGoogleCode(manualCode.trim());
+      setShowCodeEntry(false);
+      setManualCode("");
+      await fetchIntegrations();
+    } catch {
+      setError("Failed to exchange authorization code. Please try again.");
+    } finally {
+      setSubmittingCode(false);
     }
   }
 
@@ -256,6 +297,38 @@ export default function Integrations() {
               </button>
             )}
           </div>
+
+          {/* Manual code entry */}
+          {showCodeEntry && !isConnected && (
+            <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-4">
+              <p className="text-sm text-blue-800">
+                After authorizing in the popup, if you are redirected to a page that
+                doesn't load, copy the URL from your browser's address bar and paste it below.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <input
+                  type="text"
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value)}
+                  placeholder="Paste redirect URL or authorization code"
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+                <button
+                  onClick={handleSubmitCode}
+                  disabled={submittingCode || !manualCode.trim()}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submittingCode ? "Submitting..." : "Submit"}
+                </button>
+                <button
+                  onClick={() => { setShowCodeEntry(false); setManualCode(""); }}
+                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -286,9 +359,9 @@ export default function Integrations() {
             </li>
             <li>
               Create an <strong>OAuth 2.0 Client ID</strong> (Web application type).
-              Add your Wallboard URL as an authorized redirect URI:{" "}
+              Add the following authorized redirect URI:{" "}
               <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono">
-                {"http://<your-host>:8000/api/integrations/google/callback"}
+                {"http://localhost:8000/api/integrations/google/callback"}
               </code>
             </li>
             <li>

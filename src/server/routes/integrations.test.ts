@@ -29,7 +29,7 @@ describe('integration routes', () => {
     expect(resp.json()).toEqual([])
   })
 
-  it('connect google returns auth url', async () => {
+  it('connect google returns auth url with localhost redirect', async () => {
     const resp = await injectAuth(testApp.app, 'POST', '/api/integrations/google/connect', undefined, testApp.cookie)
     expect(resp.statusCode).toBe(200)
     const body = resp.json()
@@ -37,6 +37,9 @@ describe('integration routes', () => {
     expect(body.auth_url).toContain('test-client-id')
     expect(body.auth_url).toContain('calendar.readonly')
     expect(body.auth_url).toContain('photospicker.mediaitems.readonly')
+    // Redirect URI must always use localhost for Google OAuth compatibility
+    expect(body.auth_url).toContain(encodeURIComponent('http://localhost:'))
+    expect(body.auth_url).toContain(encodeURIComponent('/api/integrations/google/callback'))
   })
 
   it('connect google fails without client id configured', async () => {
@@ -135,5 +138,87 @@ describe('integration routes', () => {
     })
     expect(resp.statusCode).toBe(400)
     expect(resp.json().error).toBe('Missing code parameter')
+  })
+
+  it('POST callback exchanges code and creates integration', async () => {
+    const mockTokens = {
+      access_token: 'mock-access-token',
+      refresh_token: 'mock-refresh-token',
+      expires_in: 3600,
+      token_type: 'Bearer',
+    }
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(mockTokens), { status: 200 })
+    )
+
+    const resp = await injectAuth(testApp.app, 'POST', '/api/integrations/google/callback', {
+      payload: { code: 'test-auth-code' },
+    }, testApp.cookie)
+
+    expect(resp.statusCode).toBe(200)
+    expect(resp.json()).toEqual({ success: true })
+
+    // Verify integration was stored
+    const listResp = await injectAuth(testApp.app, 'GET', '/api/integrations', undefined, testApp.cookie)
+    const integrations = listResp.json()
+    expect(integrations).toHaveLength(1)
+    expect(integrations[0].provider).toBe('google')
+    expect(integrations[0].status).toBe('connected')
+
+    fetchSpy.mockRestore()
+  })
+
+  it('POST callback extracts code from full URL', async () => {
+    const mockTokens = {
+      access_token: 'mock-access-token',
+      refresh_token: 'mock-refresh-token',
+      expires_in: 3600,
+      token_type: 'Bearer',
+    }
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(mockTokens), { status: 200 })
+    )
+
+    const fullUrl = 'http://localhost:8000/api/integrations/google/callback?code=url-auth-code&scope=something'
+    const resp = await injectAuth(testApp.app, 'POST', '/api/integrations/google/callback', {
+      payload: { code: fullUrl },
+    }, testApp.cookie)
+
+    expect(resp.statusCode).toBe(200)
+    expect(resp.json()).toEqual({ success: true })
+
+    // Verify the correct code was extracted and sent to Google
+    const fetchCall = fetchSpy.mock.calls[0]
+    const body = fetchCall[1]?.body as URLSearchParams
+    expect(body.get('code')).toBe('url-auth-code')
+
+    fetchSpy.mockRestore()
+  })
+
+  it('POST callback requires auth', async () => {
+    const resp = await testApp.app.inject({
+      method: 'POST',
+      url: '/api/integrations/google/callback',
+      payload: { code: 'test-code' },
+    })
+    expect(resp.statusCode).toBe(401)
+  })
+
+  it('POST callback fails with missing code', async () => {
+    const resp = await injectAuth(testApp.app, 'POST', '/api/integrations/google/callback', {
+      payload: {},
+    }, testApp.cookie)
+    expect(resp.statusCode).toBe(400)
+    expect(resp.json().error).toContain('Missing code')
+  })
+
+  it('POST callback fails with URL containing no code param', async () => {
+    const resp = await injectAuth(testApp.app, 'POST', '/api/integrations/google/callback', {
+      payload: { code: 'http://localhost:8000/api/integrations/google/callback?scope=something' },
+    }, testApp.cookie)
+    expect(resp.statusCode).toBe(400)
+    expect(resp.json().error).toContain('Missing code')
   })
 })
