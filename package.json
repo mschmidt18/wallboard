@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --exclude src/frontend --exclude node_modules src/server/index.ts",
-    "build": "tsc -p src/server/tsconfig.json && tsc-alias -p src/server/tsconfig.json && vite build -c src/frontend/vite.config.ts",
+    "build": "tsc -p src/server/tsconfig.json && tsc-alias -p src/server/tsconfig.json && vite build",
     "start": "NODE_ENV=production node dist/server/index.js",
-    "test": "vitest -c src/server/vitest.config.ts",
-    "test:coverage": "vitest run --coverage -c src/server/vitest.config.ts",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit -p src/server/tsconfig.json && tsc --noEmit -p src/frontend/tsconfig.json"
   },
