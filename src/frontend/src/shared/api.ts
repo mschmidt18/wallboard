@@ -1,4 +1,5 @@
 import type {
+  BackupImportResponse,
   DisplayResponse,
   GoogleConnectResponse,
   IcsCalendar,
@@ -194,5 +195,26 @@ export const api = {
     request<ScheduleRuleResponse[]>("/schedule/reorder", {
       method: "PUT",
       body: JSON.stringify(items),
+    }),
+  exportBackup: async () => {
+    const response = await fetch(`${BASE}/backup/export`, {
+      credentials: "same-origin",
+    });
+    if (!response.ok) {
+      throw new ApiError(response.status, `Export failed: ${response.status}`);
+    }
+    const blob = await response.blob();
+    const date = new Date().toISOString().split("T")[0];
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `wallboard-backup-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  importBackup: (data: unknown) =>
+    request<BackupImportResponse>("/backup/import", {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
 };

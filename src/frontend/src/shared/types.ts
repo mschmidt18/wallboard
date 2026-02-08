@@ -23,6 +23,7 @@ export type {
   ScheduleRuleCreate,
   ScheduleRuleUpdate,
   ScheduleReorder,
+  BackupImportResponse,
 } from "@shared/types";
 
 export { DEFAULT_THEME } from "@shared/constants";

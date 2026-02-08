@@ -15,6 +15,7 @@ import { googleDataRoutes } from './routes/google-data.js'
 import { displayRoutes } from './routes/display.js'
 import { scheduleRoutes } from './routes/schedule.js'
 import { systemRoutes } from './routes/system.js'
+import { backupRoutes } from './routes/backup.js'
 import { requestLogger } from './middleware/request-logger.js'
 import { startRefreshLoop, type RefreshHandle } from './services/refresh.js'
 
@@ -55,6 +56,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(scheduleRoutes)
   await app.register(displayRoutes)
   await app.register(systemRoutes)
+  await app.register(backupRoutes)
 
   // Register refresh loop lifecycle (skip in tests)
   if (!options.skipRefreshLoop) {

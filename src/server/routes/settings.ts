@@ -1,10 +1,9 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync } from 'fs'
-import { dirname, join } from 'path'
 import type { FastifyInstance } from 'fastify'
 import type Database from 'better-sqlite3'
 import { hashPassword, verifyPassword, createSessionToken } from '../auth.js'
 import { addSession, removeSession, requireAuth } from '../middleware/auth.js'
 import { forceRefreshAll, getRefreshProgress } from '../services/refresh.js'
+import { loadSettings, saveSettings } from '../services/settings-store.js'
 import type { Config } from '../config.js'
 import {
   PasswordBodySchema,
@@ -12,38 +11,6 @@ import {
   SettingsUpdateSchema,
 } from '@shared/types.js'
 import type { PasswordBody, ChangePasswordBody, SettingsUpdate } from '@shared/types.js'
-
-
-const DEFAULT_SETTINGS = {
-  admin_password_hash: '',
-  google_client_id: '',
-  google_client_secret: '',
-  display_refresh_interval: 60,
-  log_level: 'info',
-  scheduling_enabled: false,
-}
-
-function settingsPath(config: { dbPath: string }): string {
-  return join(dirname(config.dbPath), 'settings.json')
-}
-
-function loadSettings(config: { dbPath: string }): Record<string, unknown> {
-  const path = settingsPath(config)
-  if (existsSync(path)) {
-    return JSON.parse(readFileSync(path, 'utf-8'))
-  }
-  return { ...DEFAULT_SETTINGS }
-}
-
-function saveSettings(config: { dbPath: string }, settings: Record<string, unknown>): void {
-  const path = settingsPath(config)
-  const dir = dirname(path)
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true })
-  }
-  writeFileSync(path, JSON.stringify(settings, null, 2))
-  chmodSync(path, 0o600)
-}
 
 export async function settingsRoutes(app: FastifyInstance): Promise<void> {
   const config = (app as unknown as { config: Config }).config

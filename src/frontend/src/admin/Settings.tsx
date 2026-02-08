@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback, type FormEvent } from "react";
+import { useEffect, useState, useRef, useCallback, type FormEvent, type ChangeEvent } from "react";
 import { api } from "../shared/api";
 
 interface SettingsData {
@@ -63,6 +63,11 @@ export default function Settings() {
     [],
   );
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [backupFeedback, setBackupFeedback] = useState<FeedbackState>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadSettings();
@@ -196,6 +201,50 @@ export default function Settings() {
     } finally {
       stopPolling();
       setRefreshing(false);
+    }
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    setBackupFeedback(null);
+    try {
+      await api.exportBackup();
+      setBackupFeedback({ type: "success", message: "Backup exported successfully." });
+    } catch {
+      setBackupFeedback({ type: "error", message: "Failed to export backup." });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset file input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    if (!window.confirm("This will replace all existing layouts, widgets, calendars, and schedule rules. Continue?")) {
+      return;
+    }
+
+    setImporting(true);
+    setBackupFeedback(null);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const result = await api.importBackup(data);
+      setBackupFeedback({
+        type: "success",
+        message: `Imported ${result.layouts} layout(s), ${result.widgets} widget(s), ${result.ics_calendars} calendar(s), ${result.schedule_rules} schedule rule(s).`,
+      });
+    } catch (err) {
+      const message = err instanceof SyntaxError
+        ? "Invalid JSON file."
+        : "Failed to import backup.";
+      setBackupFeedback({ type: "error", message });
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -505,6 +554,49 @@ export default function Settings() {
           </div>
         </section>
       </form>
+
+      {/* Backup & Restore Section */}
+      <section className="mt-10 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
+          Backup & Restore
+        </h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Export your configuration to a JSON file or restore from a previous backup.
+        </p>
+        <div className="mt-4 flex items-center gap-4">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="py-2 px-4 bg-gray-100 text-gray-700 font-medium rounded-md border border-gray-300 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {exporting ? "Exporting..." : "Export Config"}
+          </button>
+          <label
+            className={`py-2 px-4 bg-gray-100 text-gray-700 font-medium rounded-md border border-gray-300 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors cursor-pointer ${importing ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            {importing ? "Importing..." : "Import Config"}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImportFile}
+              disabled={importing}
+              className="hidden"
+            />
+          </label>
+        </div>
+        {backupFeedback && (
+          <p
+            className={`mt-3 text-sm ${backupFeedback.type === "success" ? "text-green-600" : "text-red-600"}`}
+          >
+            {backupFeedback.message}
+          </p>
+        )}
+        <p className="mt-2 text-xs text-gray-400">
+          Exports layouts, widgets, calendars, schedule rules, and non-sensitive settings. Does not include passwords or API secrets.
+        </p>
+      </section>
     </div>
   );
 }

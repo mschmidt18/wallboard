@@ -271,3 +271,63 @@ export interface CalendarSource {
   type: 'google' | 'ics';
   id: string | number;
 }
+
+// --- Backup schemas ---
+
+const BackupWidgetSchema = Type.Object({
+  widget_type: Type.String(),
+  config: Type.Record(Type.String(), Type.Unknown()),
+  position_x: Type.Integer({ minimum: 0 }),
+  position_y: Type.Integer({ minimum: 0 }),
+  width: Type.Integer({ minimum: 1 }),
+  height: Type.Integer({ minimum: 1 }),
+});
+
+const BackupLayoutSchema = Type.Object({
+  _export_id: Type.Integer(),
+  name: Type.String(),
+  columns: Type.Integer(),
+  row_height: Type.Integer(),
+  is_active: Type.Boolean(),
+  theme: Type.Record(Type.String(), Type.Unknown()),
+  widgets: Type.Array(BackupWidgetSchema),
+});
+
+const BackupIcsCalendarSchema = Type.Object({
+  name: Type.String(),
+  url: Type.String(),
+  color: Type.String(),
+});
+
+const BackupScheduleRuleSchema = Type.Object({
+  _export_layout_id: Type.Union([Type.Integer(), Type.Null()]),
+  days_of_week: Type.Array(Type.Integer()),
+  start_time: Type.String(),
+  end_time: Type.String(),
+  sort_order: Type.Integer(),
+  enabled: Type.Boolean(),
+});
+
+const BackupSettingsSchema = Type.Object({
+  google_client_id: Type.Optional(Type.String()),
+  display_refresh_interval: Type.Optional(Type.Integer()),
+  log_level: Type.Optional(Type.String()),
+  scheduling_enabled: Type.Optional(Type.Boolean()),
+});
+
+export const BackupImportSchema = Type.Object({
+  version: Type.Literal(1),
+  exported_at: Type.String(),
+  layouts: Type.Array(BackupLayoutSchema),
+  ics_calendars: Type.Array(BackupIcsCalendarSchema),
+  schedule_rules: Type.Array(BackupScheduleRuleSchema),
+  settings: BackupSettingsSchema,
+});
+export type BackupImport = Static<typeof BackupImportSchema>;
+
+export interface BackupImportResponse {
+  layouts: number;
+  widgets: number;
+  ics_calendars: number;
+  schedule_rules: number;
+}
