@@ -27,6 +27,9 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
+# Switch to our VT so the logind session becomes active (required for DRM access)
+chvt 7
+
 # Prevent cage from failing if no input devices are connected
 export WLR_LIBINPUT_NO_DEVICES=1
 

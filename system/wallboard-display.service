@@ -21,6 +21,7 @@ ExecStartPre=/bin/chown wallboard:wallboard /tmp/wallboard-xdg
 ExecStart=/opt/wallboard/bin/wallboard-display
 Restart=on-failure
 RestartSec=10
+TimeoutStopSec=5
 
 [Install]
 WantedBy=multi-user.target
