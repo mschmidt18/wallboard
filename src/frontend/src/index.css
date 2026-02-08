@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Hide scrollbars but keep scroll functionality (Chromium on Linux shows ugly persistent scrollbars) */
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome/Chromium */
+}
+
 /* Override react-grid-layout placeholder: blue drop indicator */
 .react-grid-item.react-grid-placeholder {
   background: rgb(99 102 241); /* indigo-500 */

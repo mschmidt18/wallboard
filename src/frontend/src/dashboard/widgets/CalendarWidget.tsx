@@ -84,7 +84,7 @@ export default function CalendarWidget({ data }: CalendarWidgetProps) {
   const grouped = groupEventsByDay(events);
 
   return (
-    <div className="h-full overflow-y-auto p-4 text-white">
+    <div className="h-full overflow-y-auto scrollbar-hide p-4 text-white">
       {Array.from(grouped.entries()).map(([dayLabel, dayEvents]) => (
         <div key={dayLabel} className="mb-4 last:mb-0">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-white/60 mb-2">

@@ -119,7 +119,7 @@ export default function Dashboard() {
       }}
     >
       <div
-        className="grid h-full w-full p-4 gap-4"
+        className="grid h-full w-full p-2 gap-4"
         style={{
           gridTemplateColumns: `repeat(${layout.columns}, 1fr)`,
           gridAutoRows: `${layout.row_height}px`,
