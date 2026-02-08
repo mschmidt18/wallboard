@@ -8,6 +8,7 @@ import CalendarWidget from "./widgets/CalendarWidget";
 import PhotosWidget from "./widgets/PhotosWidget";
 
 const DEFAULT_POLL_INTERVAL = 60_000;
+const DISPLAY_OFF_POLL_INTERVAL = 60_000;
 const LOCALSTORAGE_KEY = "wallboard_display_cache";
 
 const FONT_FAMILY_CSS: Record<string, string> = {
@@ -88,7 +89,10 @@ export default function Dashboard() {
         const data = await api.getDisplay();
         setDisplay(data);
         setError(false);
-        pollIntervalMs.current = (data.refresh_interval ?? 60) * 1000;
+        const baseInterval = (data.refresh_interval ?? 60) * 1000;
+        pollIntervalMs.current = data.display_power === 'off'
+          ? Math.max(baseInterval, DISPLAY_OFF_POLL_INTERVAL)
+          : baseInterval;
         localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(data));
       } catch {
         setError(true);
@@ -115,6 +119,19 @@ export default function Dashboard() {
           </p>
         </div>
       </div>
+    );
+  }
+
+  // Display off: render black screen
+  if (display.display_power === 'off' || !display.layout) {
+    return (
+      <div
+        className="h-screen w-screen"
+        style={{
+          background: "#000000",
+          cursor: cursorHidden ? "none" : "auto",
+        }}
+      />
     );
   }
 

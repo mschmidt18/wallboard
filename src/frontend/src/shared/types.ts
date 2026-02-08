@@ -19,6 +19,10 @@ export type {
   IcsCalendarCreate,
   CalendarSource,
   ThemeValues,
+  ScheduleRuleResponse,
+  ScheduleRuleCreate,
+  ScheduleRuleUpdate,
+  ScheduleReorder,
 } from "@shared/types";
 
 export { DEFAULT_THEME } from "@shared/constants";
@@ -37,6 +41,7 @@ export interface Settings {
   google_client_secret: string;
   display_refresh_interval: number;
   log_level: string;
+  scheduling_enabled: boolean;
 }
 
 // Frontend-specific Widget type: server returns WidgetResponse (with timestamps),
@@ -76,7 +81,8 @@ export interface DisplayResponse {
     columns: number;
     row_height: number;
     theme: ThemeValues;
-  };
+  } | null;
   widgets: Widget[];
   refresh_interval: number;
+  display_power: "on" | "off";
 }

@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS = {
   google_client_secret: '',
   display_refresh_interval: 60,
   log_level: 'info',
+  scheduling_enabled: false,
 }
 
 function settingsPath(config: { dbPath: string }): string {
@@ -121,6 +122,7 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
       display_refresh_interval: settings.display_refresh_interval ?? 60,
       log_level: ((settings.log_level as string) ?? 'info').toUpperCase(),
       has_password: Boolean(settings.admin_password_hash),
+      scheduling_enabled: settings.scheduling_enabled ?? false,
     }
   })
 
