@@ -21,14 +21,23 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
   const [backSrc, setBackSrc] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const photos: Photo[] = useMemo(
-    () => (data?.photos as Photo[] | undefined) ?? [],
+  const photosKey = useMemo(
+    () =>
+      ((data?.photos as Photo[] | undefined) ?? [])
+        .map((p) => p.url)
+        .join(","),
     [data?.photos],
   );
-  const photosKey = useMemo(
-    () => photos.map((p) => p.url).join(","),
-    [photos],
-  );
+  const photos: Photo[] = useMemo(() => {
+    const raw = (data?.photos as Photo[] | undefined) ?? [];
+    const shuffled = [...raw];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-shuffle only when photo set changes
+  }, [photosKey]);
   const interval = (config.interval_seconds ?? 30) * 1000;
 
   const preloadImage = useCallback((src: string): Promise<void> => {

@@ -20,6 +20,32 @@ interface DataSource {
   interval: number // seconds
 }
 
+export interface RefreshSourceStatus {
+  key: string
+  type: string
+  status: 'pending' | 'in_progress' | 'completed' | 'failed'
+}
+
+export interface RefreshProgress {
+  active: boolean
+  total: number
+  completed: number
+  failed: number
+  sources: RefreshSourceStatus[]
+}
+
+let refreshProgress: RefreshProgress = {
+  active: false,
+  total: 0,
+  completed: 0,
+  failed: 0,
+  sources: [],
+}
+
+export function getRefreshProgress(): RefreshProgress {
+  return refreshProgress
+}
+
 interface WidgetRow {
   id: number
   layout_id: number
@@ -315,7 +341,20 @@ export async function forceRefreshAll(
   let refreshed = 0
   let failed = 0
 
+  // Initialize progress tracking
+  refreshProgress = {
+    active: true,
+    total: sources.length,
+    completed: 0,
+    failed: 0,
+    sources: sources.map((s) => ({ key: s.key, type: s.type, status: 'pending' as const })),
+  }
+
   for (const source of sources) {
+    // Mark source as in_progress
+    const srcStatus = refreshProgress.sources.find((s) => s.key === source.key)
+    if (srcStatus) srcStatus.status = 'in_progress'
+
     try {
       const data = await fetchSource(source, db, config)
       if (data != null) {
@@ -325,11 +364,17 @@ export async function forceRefreshAll(
         logger?.info(`Force refreshed ${source.key}`)
         refreshed++
       }
+      if (srcStatus) srcStatus.status = 'completed'
+      refreshProgress.completed++
     } catch (err) {
       logger?.error(`Failed to force refresh ${source.key}: ${err}`)
       failed++
+      if (srcStatus) srcStatus.status = 'failed'
+      refreshProgress.failed++
     }
   }
+
+  refreshProgress.active = false
 
   return { refreshed, failed }
 }

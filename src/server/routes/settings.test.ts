@@ -511,6 +511,33 @@ describe('settings routes', () => {
     }
   })
 
+  test('GET /api/refresh/status requires authentication', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/refresh/status',
+    })
+    expect(response.statusCode).toBe(401)
+  })
+
+  test('GET /api/refresh/status returns progress state', async () => {
+    await setupPassword()
+    const { cookie } = await login()
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/refresh/status',
+      headers: { cookie },
+    })
+    expect(response.statusCode).toBe(200)
+    const data = response.json()
+    expect(data).toHaveProperty('active')
+    expect(data).toHaveProperty('total')
+    expect(data).toHaveProperty('completed')
+    expect(data).toHaveProperty('failed')
+    expect(data).toHaveProperty('sources')
+    expect(Array.isArray(data.sources)).toBe(true)
+  })
+
   test('POST /api/refresh reports partial failures', async () => {
     await setupPassword()
     const { cookie } = await login()

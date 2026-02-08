@@ -5,7 +5,7 @@ import { mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { createTestDb } from '../db/connection.js'
 import { Config } from '../config.js'
-import { collectDataSources, refreshOnce, startRefreshLoop, forceRefreshAll } from './refresh.js'
+import { collectDataSources, refreshOnce, startRefreshLoop, forceRefreshAll, getRefreshProgress } from './refresh.js'
 import type Database from 'better-sqlite3'
 
 // Mock external services
@@ -232,7 +232,7 @@ describe('collectDataSources', () => {
     expect(appleSources[0].params).toEqual({
       icloud_album_url: 'https://www.icloud.com/sharedalbum/#B0z5qAGN1JIFd3y',
     })
-    expect(appleSources[0].interval).toBe(8 * 60 * 60)
+    expect(appleSources[0].interval).toBe(2 * 60 * 60)
   })
 
   it('creates google_photos source for google photos widget', () => {
@@ -620,5 +620,43 @@ describe('forceRefreshAll', () => {
     expect(fetchWeather).toHaveBeenCalledOnce()
     const row = db.prepare("SELECT data FROM cache WHERE source = 'weather_40.7_-74'").get() as { data: string }
     expect(JSON.parse(row.data).current.temperature).toBe(80)
+  })
+
+  it('tracks progress during refresh', async () => {
+    seedWeatherWidget(db)
+    seedPhotosWidget(db, {
+      photos_source: 'apple',
+      icloud_album_url: 'https://www.icloud.com/sharedalbum/#ProgressTest',
+    })
+
+    vi.mocked(fetchWeather).mockResolvedValue({ current: { temperature: 72 }, daily: [] } as never)
+    vi.mocked(fetchApplePhotos).mockResolvedValue([
+      { id: 'p1', url: 'https://example.com/photo.jpg', width: 100, height: 100 },
+    ])
+
+    await forceRefreshAll(db, config)
+
+    const progress = getRefreshProgress()
+    expect(progress.active).toBe(false)
+    expect(progress.total).toBe(2)
+    expect(progress.completed).toBe(2)
+    expect(progress.failed).toBe(0)
+    expect(progress.sources).toHaveLength(2)
+    expect(progress.sources.every((s) => s.status === 'completed')).toBe(true)
+  })
+
+  it('tracks failed sources in progress', async () => {
+    seedWeatherWidget(db)
+    vi.mocked(fetchWeather).mockRejectedValue(new Error('Network error'))
+
+    const logger = { info: vi.fn(), error: vi.fn(), debug: vi.fn() }
+    await forceRefreshAll(db, config, logger)
+
+    const progress = getRefreshProgress()
+    expect(progress.active).toBe(false)
+    expect(progress.total).toBe(1)
+    expect(progress.completed).toBe(0)
+    expect(progress.failed).toBe(1)
+    expect(progress.sources[0].status).toBe('failed')
   })
 })

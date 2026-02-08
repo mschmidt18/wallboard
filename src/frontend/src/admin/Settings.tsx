@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useRef, useCallback, type FormEvent } from "react";
 import { api } from "../shared/api";
 
 interface SettingsData {
@@ -28,6 +28,24 @@ const REFRESH_OPTIONS = [
 
 type FeedbackState = { type: "success" | "error"; message: string } | null;
 
+interface RefreshSourceStatus {
+  key: string;
+  type: string;
+  status: "pending" | "in_progress" | "completed" | "failed";
+}
+
+function formatSourceName(source: RefreshSourceStatus): string {
+  if (source.type === "weather") return "Weather";
+  if (source.type === "calendar") return "Google Calendar";
+  if (source.type === "photos") return "Google Photos";
+  if (source.type === "apple_photos") return "Apple Photos";
+  if (source.type === "ics_calendar") {
+    // key format: ics_calendar_<id>
+    return "ICS Calendar";
+  }
+  return source.key;
+}
+
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
@@ -41,9 +59,16 @@ export default function Settings() {
   const [passwordFeedback, setPasswordFeedback] = useState<FeedbackState>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshFeedback, setRefreshFeedback] = useState<FeedbackState>(null);
+  const [refreshSources, setRefreshSources] = useState<RefreshSourceStatus[]>(
+    [],
+  );
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     loadSettings();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
 
   async function loadSettings() {
@@ -129,9 +154,33 @@ export default function Settings() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   }
 
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const startPolling = useCallback(() => {
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      try {
+        const status = await api.getRefreshStatus();
+        setRefreshSources(status.sources);
+        if (!status.active) {
+          stopPolling();
+        }
+      } catch {
+        stopPolling();
+      }
+    }, 500);
+  }, [stopPolling]);
+
   async function handleForceRefresh() {
     setRefreshing(true);
     setRefreshFeedback(null);
+    setRefreshSources([]);
+    startPolling();
     try {
       const result = await api.forceRefresh();
       const message =
@@ -145,6 +194,7 @@ export default function Settings() {
         message: "Failed to refresh data. Check server logs.",
       });
     } finally {
+      stopPolling();
       setRefreshing(false);
     }
   }
@@ -272,6 +322,53 @@ export default function Settings() {
                   </p>
                 )}
               </div>
+              {refreshing && refreshSources.length > 0 && (
+                <div className="mt-3 text-sm text-gray-600 space-y-1">
+                  <p className="font-medium">
+                    Refreshing data sources (
+                    {
+                      refreshSources.filter(
+                        (s) =>
+                          s.status === "completed" || s.status === "failed",
+                      ).length
+                    }
+                    /{refreshSources.length})...
+                  </p>
+                  <ul className="ml-1 space-y-0.5">
+                    {refreshSources.map((source) => (
+                      <li key={source.key} className="flex items-center gap-2">
+                        <span className="w-4 text-center">
+                          {source.status === "completed" && (
+                            <span className="text-green-600">&#10003;</span>
+                          )}
+                          {source.status === "failed" && (
+                            <span className="text-red-600">&#10007;</span>
+                          )}
+                          {source.status === "in_progress" && (
+                            <span className="text-indigo-600 animate-spin inline-block">
+                              &#8635;
+                            </span>
+                          )}
+                          {source.status === "pending" && (
+                            <span className="text-gray-400">&#183;</span>
+                          )}
+                        </span>
+                        <span
+                          className={
+                            source.status === "completed"
+                              ? "text-gray-500"
+                              : source.status === "failed"
+                                ? "text-red-600"
+                                : ""
+                          }
+                        >
+                          {formatSourceName(source)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <p className="mt-1 text-xs text-gray-400">
                 Force refresh all widget data (weather, calendars, photos).
               </p>

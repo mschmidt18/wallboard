@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify'
 import type Database from 'better-sqlite3'
 import { hashPassword, verifyPassword, createSessionToken } from '../auth.js'
 import { addSession, removeSession, requireAuth } from '../middleware/auth.js'
-import { forceRefreshAll } from '../services/refresh.js'
+import { forceRefreshAll, getRefreshProgress } from '../services/refresh.js'
 import type { Config } from '../config.js'
 import {
   PasswordBodySchema,
@@ -151,7 +151,13 @@ export async function settingsRoutes(app: FastifyInstance): Promise<void> {
     return { status: 'ok' }
   })
 
-  // --- Refresh endpoint ---
+  // --- Refresh endpoints ---
+
+  app.get('/api/refresh/status', {
+    preHandler: [requireAuth],
+  }, async () => {
+    return getRefreshProgress()
+  })
 
   app.post('/api/refresh', {
     preHandler: [requireAuth],

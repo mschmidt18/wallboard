@@ -161,4 +161,16 @@ export const api = {
     request<{ status: string; refreshed: number; failed: number }>("/refresh", {
       method: "POST",
     }),
+  getRefreshStatus: () =>
+    request<{
+      active: boolean;
+      total: number;
+      completed: number;
+      failed: number;
+      sources: Array<{
+        key: string;
+        type: string;
+        status: "pending" | "in_progress" | "completed" | "failed";
+      }>;
+    }>("/refresh/status"),
 };
