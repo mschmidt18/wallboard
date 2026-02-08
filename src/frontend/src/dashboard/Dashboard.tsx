@@ -50,6 +50,8 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
   }
 }
 
+const CURSOR_HIDE_DELAY = 3_000;
+
 export default function Dashboard() {
   const [display, setDisplay] = useState<DisplayResponse | null>(() => {
     try {
@@ -60,7 +62,22 @@ export default function Dashboard() {
     }
   });
   const [error, setError] = useState(false);
+  const [cursorHidden, setCursorHidden] = useState(true);
+  const cursorTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const pollIntervalMs = useRef(DEFAULT_POLL_INTERVAL);
+
+  useEffect(() => {
+    const handleMouseMove = () => {
+      setCursorHidden(false);
+      clearTimeout(cursorTimerRef.current);
+      cursorTimerRef.current = setTimeout(() => setCursorHidden(true), CURSOR_HIDE_DELAY);
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      clearTimeout(cursorTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
@@ -116,6 +133,7 @@ export default function Dashboard() {
         color: textColor,
         fontFamily,
         fontSize: `${fontScale}rem`,
+        cursor: cursorHidden ? "none" : "auto",
       }}
     >
       <div
