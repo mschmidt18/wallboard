@@ -4,6 +4,7 @@ import AdminShell from "./admin/AdminShell";
 import Layouts from "./admin/Layouts";
 import LayoutEditor from "./admin/LayoutEditor";
 import Integrations from "./admin/Integrations";
+import Schedule from "./admin/Schedule";
 import Settings from "./admin/Settings";
 import About from "./admin/About";
 
@@ -16,6 +17,7 @@ function App() {
           <Route index element={<AdminIndex />} />
           <Route path="layouts" element={<Layouts />} />
           <Route path="layouts/:id" element={<LayoutEditor />} />
+          <Route path="schedule" element={<Schedule />} />
           <Route path="integrations" element={<Integrations />} />
           <Route path="settings" element={<Settings />} />
           <Route path="about" element={<About />} />

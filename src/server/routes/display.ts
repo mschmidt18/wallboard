@@ -3,6 +3,8 @@ import { dirname, join } from 'path'
 import type { FastifyInstance } from 'fastify'
 import { getCacheMultiple } from '../db/queries/cache.js'
 import { listIcsCalendars } from '../db/queries/ics-calendars.js'
+import { listEnabledScheduleRules } from '../db/queries/schedule-rules.js'
+import { evaluateSchedule } from '../services/schedule.js'
 import { loadOrCreateKey } from '../services/encryption.js'
 import { getValidAccessToken } from '../services/google-auth.js'
 import { extractAlbumToken } from '../services/apple-photos.js'
@@ -195,8 +197,37 @@ export async function displayRoutes(app: FastifyInstance): Promise<void> {
   const db = (app as unknown as { db: import('better-sqlite3').Database }).db
 
   app.get('/api/display', async (_request, reply) => {
-    // Find active layout
-    const layout = db.prepare('SELECT * FROM layouts WHERE is_active = 1').get() as LayoutRow | undefined
+    // Check schedule
+    const settings = loadSettings(config)
+    const schedulingEnabled = settings.scheduling_enabled === true
+
+    let layout: LayoutRow | undefined
+
+    if (schedulingEnabled) {
+      const rules = listEnabledScheduleRules(db)
+      const scheduleResult = evaluateSchedule(rules, new Date())
+
+      if (scheduleResult) {
+        if (scheduleResult.display_power === 'off') {
+          // Display off - return minimal response
+          const response: DisplayResponse = {
+            layout: null,
+            widgets: [],
+            refresh_interval: getRefreshInterval(config),
+            display_power: 'off',
+          }
+          return response
+        }
+        // Schedule says show a specific layout
+        layout = db.prepare('SELECT * FROM layouts WHERE id = ?').get(scheduleResult.layout_id) as LayoutRow | undefined
+      }
+    }
+
+    // Fallback: use manually-activated layout
+    if (!layout) {
+      layout = db.prepare('SELECT * FROM layouts WHERE is_active = 1').get() as LayoutRow | undefined
+    }
+
     if (!layout) {
       reply.code(404).send({ error: 'No active layout' })
       return
@@ -284,6 +315,7 @@ export async function displayRoutes(app: FastifyInstance): Promise<void> {
       },
       widgets,
       refresh_interval: getRefreshInterval(config),
+      display_power: 'on',
     }
 
     return response

@@ -4,6 +4,7 @@ import type Database from 'better-sqlite3'
 import { createAuthedApp, injectAuth } from '../test/helpers.js'
 import { getCacheKey } from './display.js'
 import { upsertCache } from '../db/queries/cache.js'
+import { createScheduleRule } from '../db/queries/schedule-rules.js'
 
 describe('display routes', () => {
   let app: FastifyInstance
@@ -316,6 +317,149 @@ describe('display routes', () => {
     })
     // No Google integration set up, so should fail
     expect(resp.statusCode).toBe(502)
+  })
+
+  it('should always include display_power on in normal responses', async () => {
+    const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Power Test' },
+    }, cookie)
+    const layoutId = layoutResp.json().id
+    await injectAuth(app, 'POST', `/api/layouts/${layoutId}/activate`, {}, cookie)
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    expect(resp.json().display_power).toBe('on')
+  })
+
+  it('should use manually-activated layout when scheduling is disabled (default)', async () => {
+    const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Manual Layout' },
+    }, cookie)
+    const layoutId = layoutResp.json().id
+    await injectAuth(app, 'POST', `/api/layouts/${layoutId}/activate`, {}, cookie)
+
+    // Create a schedule rule in DB (but scheduling is disabled by default)
+    const otherLayout = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Scheduled Layout' },
+    }, cookie)
+    const otherLayoutId = otherLayout.json().id
+
+    createScheduleRule(db, {
+      layout_id: otherLayoutId,
+      days_of_week: [1, 2, 3, 4, 5, 6, 7],
+      start_time: '00:00',
+      end_time: '00:00',
+    })
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    expect(resp.json().layout.name).toBe('Manual Layout')
+    expect(resp.json().display_power).toBe('on')
+  })
+
+  it('should return scheduled layout when scheduling is enabled and rule matches', async () => {
+    // Enable scheduling
+    await injectAuth(app, 'PUT', '/api/settings', {
+      payload: { scheduling_enabled: true },
+    }, cookie)
+
+    // Create and activate manual layout
+    const manualResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Manual' },
+    }, cookie)
+    const manualId = manualResp.json().id
+    await injectAuth(app, 'POST', `/api/layouts/${manualId}/activate`, {}, cookie)
+
+    // Create scheduled layout
+    const schedResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Scheduled' },
+    }, cookie)
+    const schedId = schedResp.json().id
+
+    // Create rule: every day all-day -> scheduled layout
+    createScheduleRule(db, {
+      layout_id: schedId,
+      days_of_week: [1, 2, 3, 4, 5, 6, 7],
+      start_time: '00:00',
+      end_time: '00:00',
+    })
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    expect(resp.json().layout.name).toBe('Scheduled')
+    expect(resp.json().display_power).toBe('on')
+  })
+
+  it('should return display off when scheduled rule has null layout_id', async () => {
+    await injectAuth(app, 'PUT', '/api/settings', {
+      payload: { scheduling_enabled: true },
+    }, cookie)
+
+    const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Active' },
+    }, cookie)
+    await injectAuth(app, 'POST', `/api/layouts/${layoutResp.json().id}/activate`, {}, cookie)
+
+    // Display off rule: every day all day
+    createScheduleRule(db, {
+      layout_id: null,
+      days_of_week: [1, 2, 3, 4, 5, 6, 7],
+      start_time: '00:00',
+      end_time: '00:00',
+    })
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    expect(resp.json().display_power).toBe('off')
+    expect(resp.json().layout).toBeNull()
+    expect(resp.json().widgets).toEqual([])
+  })
+
+  it('should fall back to manual layout when no schedule rule matches', async () => {
+    await injectAuth(app, 'PUT', '/api/settings', {
+      payload: { scheduling_enabled: true },
+    }, cookie)
+
+    const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Fallback' },
+    }, cookie)
+    const layoutId = layoutResp.json().id
+    await injectAuth(app, 'POST', `/api/layouts/${layoutId}/activate`, {}, cookie)
+
+    // Rule only covers day 0 (doesn't exist in ISO) - will never match
+    // Actually use a day range that doesn't include today to guarantee no match
+    // We use an empty rule set by not creating any rules - scheduling is enabled but no rules
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    expect(resp.json().layout.name).toBe('Fallback')
+    expect(resp.json().display_power).toBe('on')
+  })
+
+  it('should override manually activated layout with schedule', async () => {
+    await injectAuth(app, 'PUT', '/api/settings', {
+      payload: { scheduling_enabled: true },
+    }, cookie)
+
+    // Activate layout A manually
+    const layoutA = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Layout A' },
+    }, cookie)
+    await injectAuth(app, 'POST', `/api/layouts/${layoutA.json().id}/activate`, {}, cookie)
+
+    // Schedule says layout B (all-day every day)
+    const layoutB = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Layout B' },
+    }, cookie)
+    createScheduleRule(db, {
+      layout_id: layoutB.json().id,
+      days_of_week: [1, 2, 3, 4, 5, 6, 7],
+      start_time: '00:00',
+      end_time: '00:00',
+    })
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    expect(resp.json().layout.name).toBe('Layout B')
   })
 })
 

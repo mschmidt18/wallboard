@@ -8,6 +8,10 @@ import type {
   LayoutCreate,
   LayoutListItem,
   LayoutUpdate,
+  ScheduleRuleResponse,
+  ScheduleRuleCreate,
+  ScheduleRuleUpdate,
+  ScheduleReorder,
   Settings,
   UpdateCheckResponse,
   UpdateResponse,
@@ -173,4 +177,22 @@ export const api = {
         status: "pending" | "in_progress" | "completed" | "failed";
       }>;
     }>("/refresh/status"),
+  getScheduleRules: () => request<ScheduleRuleResponse[]>("/schedule"),
+  createScheduleRule: (data: ScheduleRuleCreate) =>
+    request<ScheduleRuleResponse>("/schedule", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateScheduleRule: (id: number, data: ScheduleRuleUpdate) =>
+    request<ScheduleRuleResponse>(`/schedule/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  deleteScheduleRule: (id: number) =>
+    request<void>(`/schedule/${id}`, { method: "DELETE" }),
+  reorderScheduleRules: (items: ScheduleReorder) =>
+    request<ScheduleRuleResponse[]>("/schedule/reorder", {
+      method: "PUT",
+      body: JSON.stringify(items),
+    }),
 };

@@ -83,6 +83,34 @@ export const IcsCalendarUpdateSchema = Type.Object({
 });
 export type IcsCalendarUpdate = Static<typeof IcsCalendarUpdateSchema>;
 
+// --- Schedule Rule schemas ---
+
+const NullableInteger = Type.Unsafe<number | null>({ type: ['integer', 'null'] });
+
+export const ScheduleRuleCreateSchema = Type.Object({
+  layout_id: NullableInteger,
+  days_of_week: Type.Array(Type.Integer({ minimum: 1, maximum: 7 }), { minItems: 1 }),
+  start_time: Type.String({ pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' }),
+  end_time: Type.String({ pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' }),
+  enabled: Type.Optional(Type.Boolean()),
+});
+export type ScheduleRuleCreate = Static<typeof ScheduleRuleCreateSchema>;
+
+export const ScheduleRuleUpdateSchema = Type.Object({
+  layout_id: Type.Optional(NullableInteger),
+  days_of_week: Type.Optional(Type.Array(Type.Integer({ minimum: 1, maximum: 7 }), { minItems: 1 })),
+  start_time: Type.Optional(Type.String({ pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' })),
+  end_time: Type.Optional(Type.String({ pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' })),
+  enabled: Type.Optional(Type.Boolean()),
+});
+export type ScheduleRuleUpdate = Static<typeof ScheduleRuleUpdateSchema>;
+
+export const ScheduleReorderSchema = Type.Array(Type.Object({
+  id: Type.Integer(),
+  sort_order: Type.Integer({ minimum: 0 }),
+}));
+export type ScheduleReorder = Static<typeof ScheduleReorderSchema>;
+
 // --- Auth schemas ---
 
 export const PasswordBodySchema = Type.Object({
@@ -108,6 +136,7 @@ export const SettingsUpdateSchema = Type.Object({
     Type.Literal('warn'),
     Type.Literal('error'),
   ])),
+  scheduling_enabled: Type.Optional(Type.Boolean()),
 });
 export type SettingsUpdate = Static<typeof SettingsUpdateSchema>;
 
@@ -168,9 +197,10 @@ export interface DisplayResponse {
     columns: number;
     row_height: number;
     theme: Record<string, unknown>;
-  };
+  } | null;
   widgets: DisplayWidgetResponse[];
   refresh_interval: number;
+  display_power: 'on' | 'off';
 }
 
 export interface Integration {
@@ -189,6 +219,19 @@ export interface Settings {
   google_client_secret: string;
   display_refresh_interval: number;
   log_level: string;
+  scheduling_enabled: boolean;
+}
+
+export interface ScheduleRuleResponse {
+  id: number;
+  layout_id: number | null;
+  days_of_week: number[];
+  start_time: string;
+  end_time: string;
+  sort_order: number;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface IcsCalendar {
