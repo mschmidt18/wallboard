@@ -55,6 +55,16 @@ export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
     preHandler: [requireAuth],
   }, async (request, reply) => {
     const id = Number(request.params.id)
+
+    // Validate layout_id exists if provided and not null
+    if (request.body.layout_id !== undefined && request.body.layout_id !== null) {
+      const layout = db.prepare('SELECT id FROM layouts WHERE id = ?').get(request.body.layout_id)
+      if (!layout) {
+        reply.code(400).send({ error: 'Layout not found' })
+        return
+      }
+    }
+
     const rule = updateScheduleRule(db, id, request.body)
     if (!rule) {
       reply.code(404).send({ error: 'Schedule rule not found' })

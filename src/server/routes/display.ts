@@ -202,7 +202,6 @@ export async function displayRoutes(app: FastifyInstance): Promise<void> {
     const schedulingEnabled = settings.scheduling_enabled === true
 
     let layout: LayoutRow | undefined
-    const displayPower: 'on' | 'off' = 'on'
 
     if (schedulingEnabled) {
       const rules = listEnabledScheduleRules(db)
@@ -316,7 +315,7 @@ export async function displayRoutes(app: FastifyInstance): Promise<void> {
       },
       widgets,
       refresh_interval: getRefreshInterval(config),
-      display_power: displayPower,
+      display_power: 'on',
     }
 
     return response
