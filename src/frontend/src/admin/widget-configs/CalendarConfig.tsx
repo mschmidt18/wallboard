@@ -42,6 +42,7 @@ export default function CalendarConfig({ config, onChange }: Props) {
   const [selectedSources, setSelectedSources] = useState<CalendarSource[]>(() => initSources(config));
   const [colors, setColors] = useState<Record<string, string>>(() => initColors(config));
   const [daysAhead, setDaysAhead] = useState<number>((config.days_ahead as number | undefined) ?? 7);
+  const [title, setTitle] = useState<string>((config.title as string | undefined) ?? "");
 
   useEffect(() => {
     let cancelled = false;
@@ -76,12 +77,15 @@ export default function CalendarConfig({ config, onChange }: Props) {
     return selectedSources.some((s) => s.type === source.type && String(s.id) === String(source.id));
   }
 
-  function emitChange(nextSources: CalendarSource[], nextColors: Record<string, string>, nextDays: number) {
-    onChange({
+  function emitChange(nextSources: CalendarSource[], nextColors: Record<string, string>, nextDays: number, nextTitle?: string) {
+    const cfg: Record<string, unknown> = {
       calendar_sources: nextSources,
       days_ahead: nextDays,
       colors: nextColors,
-    });
+    };
+    const t = nextTitle ?? title;
+    if (t) cfg.title = t;
+    onChange(cfg);
   }
 
   function handleToggle(source: CalendarSource, defaultColor: string) {
@@ -116,6 +120,24 @@ export default function CalendarConfig({ config, onChange }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Title */}
+      <div>
+        <label htmlFor="calendar-title" className="block text-sm font-medium text-gray-700 mb-1">
+          Title (optional)
+        </label>
+        <input
+          id="calendar-title"
+          type="text"
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            emitChange(selectedSources, colors, daysAhead, e.target.value);
+          }}
+          placeholder="e.g. Family Calendar"
+          className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        />
+      </div>
+
       {/* Google Calendars Section */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">Google Calendars</label>

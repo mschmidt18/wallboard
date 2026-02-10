@@ -62,7 +62,7 @@ function groupEventsByDay(events: CalendarEvent[]): Map<string, CalendarEvent[]>
   return groups;
 }
 
-export default function CalendarWidget({ data }: CalendarWidgetProps) {
+export default function CalendarWidget({ config, data }: CalendarWidgetProps) {
   if (!data) {
     return (
       <div className="h-full flex items-center justify-center text-white/50 text-lg">
@@ -85,6 +85,9 @@ export default function CalendarWidget({ data }: CalendarWidgetProps) {
 
   return (
     <div className="h-full overflow-y-auto scrollbar-hide p-4 text-white">
+      {config.title ? (
+        <h2 className="text-lg font-semibold mb-3">{String(config.title)}</h2>
+      ) : null}
       {Array.from(grouped.entries()).map(([dayLabel, dayEvents]) => (
         <div key={dayLabel} className="mb-4 last:mb-0">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-white/60 mb-2">
