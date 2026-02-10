@@ -13,6 +13,11 @@ export interface ThemeValues {
   widget_background: 'transparent' | 'semi-transparent' | 'solid';
   font_family: 'system' | 'serif' | 'monospace' | 'rounded';
   font_scale: 'small' | 'medium' | 'large';
+  background_type?: 'color' | 'photos';
+  background_photos_source?: 'google' | 'apple';
+  background_picker_session_id?: string;
+  background_icloud_album_url?: string;
+  background_interval_seconds?: number;
 }
 
 // --- Hex color pattern ---
@@ -199,6 +204,7 @@ export interface DisplayResponse {
     theme: Record<string, unknown>;
   } | null;
   widgets: DisplayWidgetResponse[];
+  background_photos?: { url: string }[];
   refresh_interval: number;
   display_power: 'on' | 'off';
 }

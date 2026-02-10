@@ -215,6 +215,47 @@ export function collectDataSources(db: Database.Database): DataSource[] {
     }
   }
 
+  // Scan layout themes for background photo sources
+  const layouts = db.prepare('SELECT id, theme FROM layouts').all() as { id: number; theme: string }[]
+  for (const layout of layouts) {
+    let theme: Record<string, unknown>
+    try {
+      theme = JSON.parse(layout.theme) as Record<string, unknown>
+    } catch {
+      continue
+    }
+    if (theme.background_type !== 'photos') continue
+
+    const bgSource = theme.background_photos_source as string | undefined
+    const bgPickerSessionId = theme.background_picker_session_id as string | undefined
+    const bgIcloudUrl = theme.background_icloud_album_url as string | undefined
+
+    if (bgSource === 'apple' && bgIcloudUrl) {
+      const token = extractAlbumToken(bgIcloudUrl)
+      if (token) {
+        const key = `apple_photos_${token}`
+        if (!sources.has(key)) {
+          sources.set(key, {
+            type: 'apple_photos',
+            key,
+            params: { icloud_album_url: bgIcloudUrl },
+            interval: DEFAULT_TTLS.apple_photos,
+          })
+        }
+      }
+    } else if (bgPickerSessionId) {
+      const key = `google_photos_picker_${bgPickerSessionId}`
+      if (!sources.has(key)) {
+        sources.set(key, {
+          type: 'photos',
+          key,
+          params: { picker_session_id: bgPickerSessionId },
+          interval: DEFAULT_TTLS.photos,
+        })
+      }
+    }
+  }
+
   return [...sources.values()]
 }
 

@@ -6,6 +6,7 @@ interface SettingsData {
   google_client_secret: string;
   display_refresh_interval: number;
   log_level: string;
+  scheduling_enabled: boolean;
 }
 
 const DEFAULT_SETTINGS: SettingsData = {
@@ -13,6 +14,7 @@ const DEFAULT_SETTINGS: SettingsData = {
   google_client_secret: "",
   display_refresh_interval: 60,
   log_level: "INFO",
+  scheduling_enabled: false,
 };
 
 const LOG_LEVELS = ["DEBUG", "INFO", "WARN", "ERROR"];
@@ -85,6 +87,7 @@ export default function Settings() {
         google_client_secret: data.google_client_secret ?? "",
         display_refresh_interval: data.display_refresh_interval ?? 60,
         log_level: data.log_level ?? "INFO",
+        scheduling_enabled: data.scheduling_enabled ?? false,
       });
     } catch {
       setFeedback({ type: "error", message: "Failed to load settings." });
@@ -103,6 +106,7 @@ export default function Settings() {
         google_client_secret: settings.google_client_secret,
         display_refresh_interval: settings.display_refresh_interval,
         log_level: settings.log_level.toLowerCase(),
+        scheduling_enabled: settings.scheduling_enabled,
       });
       setFeedback({ type: "success", message: "Settings saved successfully." });
     } catch {

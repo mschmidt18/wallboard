@@ -84,6 +84,7 @@ export interface DisplayResponse {
     theme: ThemeValues;
   } | null;
   widgets: Widget[];
+  background_photos?: { url: string }[];
   refresh_interval: number;
   display_power: "on" | "off";
 }

@@ -6,6 +6,7 @@ import NotesWidget from "./widgets/NotesWidget";
 import WeatherWidget from "./widgets/WeatherWidget";
 import CalendarWidget from "./widgets/CalendarWidget";
 import PhotosWidget from "./widgets/PhotosWidget";
+import BackgroundSlideshow from "./BackgroundSlideshow";
 
 const DEFAULT_POLL_INTERVAL = 60_000;
 const DISPLAY_OFF_POLL_INTERVAL = 60_000;
@@ -44,7 +45,7 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
       return <PhotosWidget config={widget.config} data={widget.data} />;
     default:
       return (
-        <div className="h-full flex items-center justify-center text-white/50 text-sm">
+        <div className="h-full flex items-center justify-center opacity-50 text-sm">
           Unknown widget: {widget.widget_type}
         </div>
       );
@@ -64,7 +65,7 @@ export default function Dashboard() {
   });
   const [error, setError] = useState(false);
   const [cursorHidden, setCursorHidden] = useState(true);
-  const cursorTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const cursorTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const pollIntervalMs = useRef(DEFAULT_POLL_INTERVAL);
 
   useEffect(() => {
@@ -142,22 +143,35 @@ export default function Dashboard() {
   const fontScale = FONT_SCALE_CSS[theme.font_scale] || 1;
   const widgetBg = WIDGET_BG_CSS[theme.widget_background] || WIDGET_BG_CSS["semi-transparent"];
 
+  const hasPhotoBg = theme.background_type === "photos" && display.background_photos && display.background_photos.length > 0;
+
   return (
     <div
       className="h-screen w-screen overflow-hidden"
       style={{
-        background: theme.background || "#1a1a2e",
+        background: hasPhotoBg ? "#000000" : (theme.background || "#1a1a2e"),
         color: textColor,
         fontFamily,
         fontSize: `${fontScale}rem`,
+        textShadow: hasPhotoBg
+          ? "0 0 4px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.4)"
+          : undefined,
         cursor: cursorHidden ? "none" : "auto",
       }}
     >
+      {hasPhotoBg && (
+        <BackgroundSlideshow
+          photos={display.background_photos!}
+          intervalSeconds={theme.background_interval_seconds ?? 30}
+        />
+      )}
       <div
         className="grid h-full w-full p-2 gap-2"
         style={{
           gridTemplateColumns: `repeat(${layout.columns}, 1fr)`,
           gridAutoRows: `${layout.row_height}px`,
+          position: hasPhotoBg ? "relative" : undefined,
+          zIndex: hasPhotoBg ? 1 : undefined,
         }}
       >
         {widgets.map((widget) => (

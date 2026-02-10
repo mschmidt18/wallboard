@@ -149,15 +149,9 @@ export function mergeCalendarData(
     const cached = cacheEntries.get(cacheKey) as { events?: Record<string, unknown>[] } | undefined
     if (cached?.events) {
       for (const event of cached.events) {
-        let e = event
-        for (const gid of googleIds) {
-          const color = colors[`google:${gid}`]
-          if (color) {
-            e = { ...e, color }
-            break
-          }
-        }
-        allEvents.push(e)
+        const calId = event.calendar_id as string | undefined
+        const color = calId ? colors[`google:${calId}`] : undefined
+        allEvents.push(color ? { ...event, color } : event)
       }
     }
   }
@@ -274,6 +268,28 @@ export async function displayRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // Check for background photo source in theme
+    const theme = JSON.parse(layout.theme) as Record<string, unknown>
+    let bgPhotoCacheKey: string | null = null
+    if (theme.background_type === 'photos') {
+      const bgSource = theme.background_photos_source as string | undefined
+      const bgPickerSessionId = theme.background_picker_session_id as string | undefined
+      const bgIcloudUrl = theme.background_icloud_album_url as string | undefined
+
+      if (bgSource === 'apple' && bgIcloudUrl) {
+        const token = extractAlbumToken(bgIcloudUrl)
+        if (token) {
+          bgPhotoCacheKey = `apple_photos_${token}`
+        }
+      } else if (bgPickerSessionId) {
+        bgPhotoCacheKey = `google_photos_picker_${bgPickerSessionId}`
+      }
+
+      if (bgPhotoCacheKey) {
+        allNeededKeys.add(bgPhotoCacheKey)
+      }
+    }
+
     // Batch-query cache
     const cacheEntries = allNeededKeys.size > 0
       ? getCacheMultiple(db, [...allNeededKeys])
@@ -305,17 +321,30 @@ export async function displayRoutes(app: FastifyInstance): Promise<void> {
       }
     })
 
+    // Build background_photos if configured and cached
+    let backgroundPhotos: { url: string }[] | undefined
+    if (bgPhotoCacheKey) {
+      const bgCacheData = cacheEntries.get(bgPhotoCacheKey) as { photos?: { url: string }[] } | undefined
+      if (bgCacheData?.photos && bgCacheData.photos.length > 0) {
+        backgroundPhotos = bgCacheData.photos.map((p) => ({ url: p.url }))
+      }
+    }
+
     const response: DisplayResponse = {
       layout: {
         id: layout.id,
         name: layout.name,
         columns: layout.columns,
         row_height: layout.row_height,
-        theme: JSON.parse(layout.theme),
+        theme,
       },
       widgets,
       refresh_interval: getRefreshInterval(config),
       display_power: 'on',
+    }
+
+    if (backgroundPhotos) {
+      response.background_photos = backgroundPhotos
     }
 
     return response

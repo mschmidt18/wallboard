@@ -68,6 +68,7 @@ function WeatherIcon({ code, className }: { code: number; className?: string }) 
       src={`/weather-icons/${weatherIconName(code)}.svg`}
       alt=""
       className={className}
+      style={{ filter: "drop-shadow(0 0 3px rgba(0,0,0,0.8)) drop-shadow(0 0 8px rgba(0,0,0,0.5))" }}
       draggable={false}
     />
   );
@@ -90,7 +91,7 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
 
   if (!data || !data.current) {
     return (
-      <div className="h-full flex items-center justify-center text-white/50 text-lg">
+      <div className="h-full flex items-center justify-center opacity-50 text-lg">
         Waiting for data...
       </div>
     );
@@ -108,7 +109,7 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
     <div
       ref={containerRef}
       className={[
-        "h-full flex flex-col text-white p-4 overflow-hidden",
+        "h-full flex flex-col p-4 overflow-hidden",
         showForecast && !portrait ? "@sm:flex-row" : "",
       ].join(" ")}
     >
@@ -132,13 +133,13 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
           {Math.round(current.temperature)}{unitSymbol}
         </div>
         <div
-          className="text-white/80 mt-1"
+          className="opacity-90 mt-1"
           style={{ fontSize: "clamp(0.75rem, 4cqi, 1.125rem)" }}
         >
           {current.condition}
         </div>
         <div
-          className="flex gap-4 mt-2 text-white/60 flex-wrap justify-center"
+          className="flex gap-4 mt-2 opacity-80 flex-wrap justify-center"
           style={{ fontSize: "clamp(0.625rem, 3cqi, 0.875rem)" }}
         >
           <span>Feels {Math.round(current.feels_like)}{unitSymbol}</span>
@@ -147,7 +148,7 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
         </div>
         {forecastDays === 1 && today && (
           <div
-            className="flex gap-3 mt-2 text-white/60"
+            className="flex gap-3 mt-2 opacity-80"
             style={{ fontSize: "clamp(0.625rem, 3cqi, 0.875rem)" }}
           >
             <span>Hi {Math.round(today.high)}&deg;</span>
@@ -161,11 +162,11 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
         <div
           className={
             portrait
-              ? "flex flex-col gap-2 mt-3 pt-3 border-t border-white/10 flex-1 justify-center"
+              ? "flex flex-col gap-2 mt-3 pt-3 border-t border-current/10 flex-1 justify-center"
               : [
                   "flex gap-1 justify-around shrink-0",
-                  "mt-3 pt-3 border-t border-white/10",
-                  "@sm:mt-0 @sm:pt-0 @sm:border-t-0 @sm:ml-3 @sm:pl-3 @sm:border-l @sm:border-white/10",
+                  "mt-3 pt-3 border-t border-current/10",
+                  "@sm:mt-0 @sm:pt-0 @sm:border-t-0 @sm:ml-3 @sm:pl-3 @sm:border-l @sm:border-current/10",
                   "@sm:flex-[3] @sm:items-center",
                 ].join(" ")
           }
@@ -175,16 +176,16 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
               key={day.date}
               className={
                 portrait
-                  ? "flex items-center gap-3 text-white/70"
-                  : "flex flex-col items-center text-white/70 min-w-0"
+                  ? "flex items-center gap-3"
+                  : "flex flex-col items-center min-w-0"
               }
               style={{ fontSize: "clamp(0.625rem, 3cqi, 0.875rem)" }}
             >
               <span
                 className={
                   portrait
-                    ? "font-medium text-white/90 w-12 shrink-0"
-                    : "font-medium text-white/90"
+                    ? "font-medium opacity-90 w-12 shrink-0"
+                    : "font-medium opacity-90"
                 }
               >
                 {getDayName(day.date)}
@@ -197,8 +198,8 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
                     : "my-0.5 w-[clamp(24px,8cqi,48px)] h-[clamp(24px,8cqi,48px)]"
                 }
               />
-              <span className="text-white shrink-0">{Math.round(day.high)}&deg;</span>
-              <span className="text-white/50 shrink-0">{Math.round(day.low)}&deg;</span>
+              <span className="shrink-0">{Math.round(day.high)}&deg;</span>
+              <span className="opacity-70 shrink-0">{Math.round(day.low)}&deg;</span>
             </div>
           ))}
         </div>

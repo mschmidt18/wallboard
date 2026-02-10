@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useMemo } from "react";
+import { useSlideshow } from "../hooks/useSlideshow";
 
 interface PhotosWidgetProps {
   config: {
@@ -10,89 +11,19 @@ interface PhotosWidgetProps {
 
 interface Photo {
   url: string;
-  width: number;
-  height: number;
 }
 
 export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
-  const [showFront, setShowFront] = useState(true);
-  const indexRef = useRef(0);
-  const [frontSrc, setFrontSrc] = useState<string | null>(null);
-  const [backSrc, setBackSrc] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const photosKey = useMemo(
-    () =>
-      ((data?.photos as Photo[] | undefined) ?? [])
-        .map((p) => p.url)
-        .join(","),
+  const photos: Photo[] = useMemo(
+    () => (data?.photos as Photo[] | undefined) ?? [],
     [data?.photos],
   );
-  const photos: Photo[] = useMemo(() => {
-    const raw = (data?.photos as Photo[] | undefined) ?? [];
-    const shuffled = [...raw];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-shuffle only when photo set changes
-  }, [photosKey]);
   const interval = (config.interval_seconds ?? 30) * 1000;
+  const { frontSrc, backSrc, showFront, hasPhotos } = useSlideshow(photos, interval);
 
-  const preloadImage = useCallback((src: string): Promise<void> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve();
-      img.onerror = () => resolve();
-      img.src = src;
-    });
-  }, []);
-
-  // Initialize the first image when the photo set changes.
-  // photosKey is used instead of photos to avoid re-running when the array
-  // reference changes but the URLs haven't. setState is intentional here as
-  // this is a one-time initialization when the photo set changes.
-  useEffect(() => {
-    if (photos.length === 0) return;
-    const url = photos[0].url;
-    indexRef.current = 0;
-    setFrontSrc(url);
-    setBackSrc(null);
-    setShowFront(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- photos is derived from data; photosKey is the stable dep
-  }, [photosKey]);
-
-  // Cycle through photos on interval
-  useEffect(() => {
-    if (photos.length <= 1) return;
-
-    timerRef.current = setInterval(() => {
-      const nextIdx = (indexRef.current + 1) % photos.length;
-      indexRef.current = nextIdx;
-      const nextUrl = photos[nextIdx].url;
-
-      preloadImage(nextUrl).then(() => {
-        setShowFront((front) => {
-          if (front) {
-            setBackSrc(nextUrl);
-          } else {
-            setFrontSrc(nextUrl);
-          }
-          return !front;
-        });
-      });
-    }, interval);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- photos is derived from data; photosKey and photos.length are the stable deps
-  }, [photos.length, interval, preloadImage, photosKey]);
-
-  if (photos.length === 0) {
+  if (!hasPhotos) {
     return (
-      <div className="h-full flex items-center justify-center text-white/50">
+      <div className="h-full flex items-center justify-center opacity-50">
         <span className="text-lg">No photos</span>
       </div>
     );

@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { api } from "../../shared/api";
+import { useState, useEffect, useRef } from "react";
 import googlePhotosLogo from "../../assets/google-photos-logo.svg";
 import applePhotosLogo from "../../assets/apple-photos-logo.svg";
+import { useGooglePhotoPicker } from "../hooks/useGooglePhotoPicker";
 
 type PhotosSource = "google" | "apple" | "";
 
@@ -27,12 +27,6 @@ export default function PhotosConfig({ config, onChange }: Props) {
   const [photosSource, setPhotosSource] = useState<PhotosSource>(
     (config.photos_source as PhotosSource | undefined) ?? ""
   );
-  const [pickerSessionId, setPickerSessionId] = useState<string>(
-    (config.picker_session_id as string | undefined) ?? ""
-  );
-  const [photoCount, setPhotoCount] = useState<number>(
-    (config.photo_count as number | undefined) ?? 0
-  );
   const [icloudAlbumUrl, setIcloudAlbumUrl] = useState<string>(
     (config.icloud_album_url as string | undefined) ?? ""
   );
@@ -42,26 +36,49 @@ export default function PhotosConfig({ config, onChange }: Props) {
   const [transition, setTransition] = useState<string>(
     (config.transition as string | undefined) ?? "fade"
   );
-  const [picking, setPicking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [sessionExpired, setSessionExpired] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [urlError, setUrlError] = useState<string | null>(null);
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const popupRef = useRef<Window | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Check if existing Google session is still valid on mount
-  useEffect(() => {
-    if (!pickerSessionId || photosSource !== "google") return;
-    let cancelled = false;
-    api.pollPhotoPickerSession(pickerSessionId).catch(() => {
-      if (!cancelled) setSessionExpired(true);
-    });
-    return () => {
-      cancelled = true;
+  const picker = useGooglePhotoPicker({
+    initialSessionId: (config.picker_session_id as string | undefined) ?? "",
+    initialPhotoCount: (config.photo_count as number | undefined) ?? 0,
+  });
+
+  function emitChange(
+    updates: Partial<{
+      photos_source: PhotosSource;
+      picker_session_id: string;
+      photo_count: number;
+      icloud_album_url: string;
+      interval_seconds: number;
+      transition: string;
+    }>
+  ) {
+    const next: Record<string, unknown> = {
+      ...config,
+      photos_source: updates.photos_source ?? photosSource,
+      picker_session_id: updates.picker_session_id ?? picker.pickerSessionId,
+      photo_count: updates.photo_count ?? picker.photoCount,
+      icloud_album_url: updates.icloud_album_url ?? icloudAlbumUrl,
+      interval_seconds: updates.interval_seconds ?? intervalSeconds,
+      transition: updates.transition ?? transition,
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- only check on mount
+    delete next.album_id;
+    onChange(next);
+  }
+
+  // Emit config change when picker session changes
+  const prevSessionRef = useRef(picker.pickerSessionId);
+  useEffect(() => {
+    if (picker.pickerSessionId && picker.pickerSessionId !== prevSessionRef.current) {
+      prevSessionRef.current = picker.pickerSessionId;
+      emitChange({
+        picker_session_id: picker.pickerSessionId,
+        photo_count: picker.photoCount,
+      });
+    }
+  }, [picker.pickerSessionId, picker.photoCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -77,126 +94,9 @@ export default function PhotosConfig({ config, onChange }: Props) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function emitChange(
-    updates: Partial<{
-      photos_source: PhotosSource;
-      picker_session_id: string;
-      photo_count: number;
-      icloud_album_url: string;
-      interval_seconds: number;
-      transition: string;
-    }>
-  ) {
-    const next: Record<string, unknown> = {
-      ...config,
-      photos_source: updates.photos_source ?? photosSource,
-      picker_session_id: updates.picker_session_id ?? pickerSessionId,
-      photo_count: updates.photo_count ?? photoCount,
-      icloud_album_url: updates.icloud_album_url ?? icloudAlbumUrl,
-      interval_seconds: updates.interval_seconds ?? intervalSeconds,
-      transition: updates.transition ?? transition,
-    };
-    // Remove legacy album_id if present
-    delete next.album_id;
-    onChange(next);
-  }
-
-  const stopPolling = useCallback(() => {
-    if (pollTimerRef.current) {
-      clearTimeout(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-  }, []);
-
-  async function startPicking() {
-    setError(null);
-    setPicking(true);
-    setSessionExpired(false);
-
-    // Open blank popup in the click handler to avoid popup blockers
-    const popup = window.open("", "photoPicker", "width=900,height=700");
-    popupRef.current = popup;
-
-    try {
-      const data = await api.createPhotoPickerSession();
-      if (!popup || popup.closed) {
-        setError("Popup was blocked. Please allow popups for this site.");
-        setPicking(false);
-        return;
-      }
-      // Append /autoclose so Google's picker closes the popup after selection
-      popup.location.href = data.picker_uri + "/autoclose";
-
-      // Poll for completion
-      const pollingInterval =
-        (data.polling_config as Record<string, unknown>)?.pollInterval
-          ? Number(
-              String(
-                (data.polling_config as Record<string, unknown>).pollInterval
-              ).replace("s", "")
-            ) * 1000
-          : 3000;
-
-      // After popup closes, keep polling for a bit — there can be a delay
-      // between the user confirming and Google setting mediaItemsSet.
-      let pollsAfterClose = 0;
-      const maxPollsAfterClose = 10;
-
-      const poll = async () => {
-        if (popup.closed) {
-          pollsAfterClose++;
-        }
-
-        try {
-          const status = await api.pollPhotoPickerSession(data.session_id);
-          if (status.media_items_set && status.photos) {
-            if (!popup.closed) popup.close();
-            setPickerSessionId(data.session_id);
-            setPhotoCount(status.photos.length);
-            emitChange({
-              picker_session_id: data.session_id,
-              photo_count: status.photos.length,
-            });
-            setPicking(false);
-            return;
-          }
-        } catch {
-          // Polling error, keep trying
-        }
-
-        // Give up after polling several times with popup closed
-        if (pollsAfterClose >= maxPollsAfterClose) {
-          setPicking(false);
-          return;
-        }
-
-        pollTimerRef.current = setTimeout(poll, pollingInterval);
-      };
-
-      pollTimerRef.current = setTimeout(poll, pollingInterval);
-    } catch (err) {
-      popup?.close();
-      setError(
-        err instanceof Error ? err.message : "Failed to start photo picker"
-      );
-      setPicking(false);
-    }
-  }
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      stopPolling();
-      if (popupRef.current && !popupRef.current.closed) {
-        popupRef.current.close();
-      }
-    };
-  }, [stopPolling]);
-
   function handleSourceChange(source: PhotosSource) {
     setPhotosSource(source);
     setDropdownOpen(false);
-    setError(null);
     setUrlError(null);
     emitChange({ photos_source: source });
   }
@@ -301,7 +201,7 @@ export default function PhotosConfig({ config, onChange }: Props) {
       </div>
 
       {/* Session expired warning (Google only) */}
-      {photosSource === "google" && sessionExpired && (
+      {photosSource === "google" && picker.sessionExpired && (
         <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
           <p className="text-sm text-amber-800">
             Photo session expired. Please re-pick your photos.
@@ -310,9 +210,9 @@ export default function PhotosConfig({ config, onChange }: Props) {
       )}
 
       {/* Error */}
-      {error && (
+      {picker.error && (
         <div className="rounded-md bg-red-50 border border-red-200 p-3">
-          <p className="text-sm text-red-800">{error}</p>
+          <p className="text-sm text-red-800">{picker.error}</p>
         </div>
       )}
 
@@ -322,28 +222,28 @@ export default function PhotosConfig({ config, onChange }: Props) {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Photos
           </label>
-          {pickerSessionId && !sessionExpired ? (
+          {picker.pickerSessionId && !picker.sessionExpired ? (
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-600">
-                {photoCount} photo{photoCount !== 1 ? "s" : ""} selected
+                {picker.photoCount} photo{picker.photoCount !== 1 ? "s" : ""} selected
               </span>
               <button
                 type="button"
-                onClick={startPicking}
-                disabled={picking}
+                onClick={picker.startPicking}
+                disabled={picker.picking}
                 className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
-                {picking ? "Picking..." : "Re-pick Photos"}
+                {picker.picking ? "Picking..." : "Re-pick Photos"}
               </button>
             </div>
           ) : (
             <button
               type="button"
-              onClick={startPicking}
-              disabled={picking}
+              onClick={picker.startPicking}
+              disabled={picker.picking}
               className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
             >
-              {picking ? "Opening picker..." : "Pick Photos"}
+              {picker.picking ? "Opening picker..." : "Pick Photos"}
             </button>
           )}
           <p className="mt-1 text-xs text-gray-400">

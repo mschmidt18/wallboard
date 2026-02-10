@@ -10,6 +10,11 @@ export default function AdminShell() {
   const [errorMessage, setErrorMessage] = useState<string>("");
 
   useEffect(() => {
+    document.title = "Wallboard - Admin";
+    return () => { document.title = "Wallboard"; };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function run() {

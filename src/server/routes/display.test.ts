@@ -186,7 +186,7 @@ describe('display routes', () => {
     }, cookie)
 
     upsertCache(db, 'google_calendar_primary_7', {
-      events: [{ title: 'Team Sync', start: '2026-02-03T14:00:00', end: '2026-02-03T15:00:00' }],
+      events: [{ title: 'Team Sync', start: '2026-02-03T14:00:00', end: '2026-02-03T15:00:00', calendar_id: 'primary' }],
     }, null)
     upsertCache(db, `ics_calendar_${icsId}`, {
       events: [{ title: 'Yoga', start: '2026-02-03T07:00:00', end: '2026-02-03T08:00:00' }],
@@ -198,6 +198,46 @@ describe('display routes', () => {
     const teamSync = events.find((e: { title: string }) => e.title === 'Team Sync')
     expect(yoga.color).toBe('#ef4444')
     expect(teamSync.color).toBe('#3b82f6')
+  })
+
+  it('should apply different colors to multiple Google calendars', async () => {
+    const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Multi-Google Color Test' },
+    }, cookie)
+    const layoutId = layoutResp.json().id
+    await injectAuth(app, 'POST', `/api/layouts/${layoutId}/activate`, {}, cookie)
+    await injectAuth(app, 'POST', `/api/layouts/${layoutId}/widgets`, {
+      payload: {
+        widget_type: 'calendar',
+        config: {
+          calendar_sources: [
+            { type: 'google', id: 'family' },
+            { type: 'google', id: 'work' },
+            { type: 'google', id: 'school' },
+          ],
+          days_ahead: 7,
+          colors: { 'google:family': '#ff0000', 'google:work': '#0000ff', 'google:school': '#00ff00' },
+        },
+        position_x: 0, position_y: 0, width: 6, height: 4,
+      },
+    }, cookie)
+
+    upsertCache(db, 'google_calendar_family_school_work_7', {
+      events: [
+        { title: 'Dinner', start: '2026-02-03T18:00:00', end: '2026-02-03T19:00:00', calendar_id: 'family' },
+        { title: 'Standup', start: '2026-02-03T09:00:00', end: '2026-02-03T09:30:00', calendar_id: 'work' },
+        { title: 'PTA Meeting', start: '2026-02-03T15:00:00', end: '2026-02-03T16:00:00', calendar_id: 'school' },
+      ],
+    }, null)
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    const events = resp.json().widgets[0].data.events
+    const dinner = events.find((e: { title: string }) => e.title === 'Dinner')
+    const standup = events.find((e: { title: string }) => e.title === 'Standup')
+    const pta = events.find((e: { title: string }) => e.title === 'PTA Meeting')
+    expect(dinner.color).toBe('#ff0000')
+    expect(standup.color).toBe('#0000ff')
+    expect(pta.color).toBe('#00ff00')
   })
 
   it('should support backward-compatible calendar_ids format', async () => {
@@ -433,6 +473,94 @@ describe('display routes', () => {
     expect(resp.statusCode).toBe(200)
     expect(resp.json().layout.name).toBe('Fallback')
     expect(resp.json().display_power).toBe('on')
+  })
+
+  it('should not include background_photos when layout has no photo background', async () => {
+    const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Color BG', theme: { background: '#1a1a2e' } },
+    }, cookie)
+    const layoutId = layoutResp.json().id
+    await injectAuth(app, 'POST', `/api/layouts/${layoutId}/activate`, {}, cookie)
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    expect(resp.json().background_photos).toBeUndefined()
+  })
+
+  it('should include background_photos when theme has photo background and cache has data', async () => {
+    const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: {
+        name: 'Photo BG',
+        theme: {
+          background_type: 'photos',
+          background_photos_source: 'google',
+          background_picker_session_id: 'bg_sess_1',
+        },
+      },
+    }, cookie)
+    const layoutId = layoutResp.json().id
+    await injectAuth(app, 'POST', `/api/layouts/${layoutId}/activate`, {}, cookie)
+
+    // Populate cache
+    upsertCache(db, 'google_photos_picker_bg_sess_1', {
+      photos: [
+        { id: 'p1', url: '/api/photos/proxy?url=https://lh3.googleusercontent.com/photo1', mimeType: 'image/jpeg' },
+        { id: 'p2', url: '/api/photos/proxy?url=https://lh3.googleusercontent.com/photo2', mimeType: 'image/jpeg' },
+      ],
+    }, null)
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    const data = resp.json()
+    expect(data.background_photos).toHaveLength(2)
+    expect(data.background_photos[0].url).toContain('photo1')
+    expect(data.background_photos[1].url).toContain('photo2')
+  })
+
+  it('should not include background_photos when config exists but cache is empty', async () => {
+    const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: {
+        name: 'No Cache BG',
+        theme: {
+          background_type: 'photos',
+          background_photos_source: 'google',
+          background_picker_session_id: 'bg_sess_empty',
+        },
+      },
+    }, cookie)
+    const layoutId = layoutResp.json().id
+    await injectAuth(app, 'POST', `/api/layouts/${layoutId}/activate`, {}, cookie)
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    expect(resp.json().background_photos).toBeUndefined()
+  })
+
+  it('should include background_photos for apple photos background', async () => {
+    const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: {
+        name: 'Apple BG',
+        theme: {
+          background_type: 'photos',
+          background_photos_source: 'apple',
+          background_icloud_album_url: 'https://www.icloud.com/sharedalbum/#TestBgAlbum',
+        },
+      },
+    }, cookie)
+    const layoutId = layoutResp.json().id
+    await injectAuth(app, 'POST', `/api/layouts/${layoutId}/activate`, {}, cookie)
+
+    upsertCache(db, 'apple_photos_TestBgAlbum', {
+      photos: [
+        { id: 'a1', url: 'https://cvws.icloud-content.com/photo1.jpg', width: 2048, height: 1536 },
+      ],
+    }, null)
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    const data = resp.json()
+    expect(data.background_photos).toHaveLength(1)
+    expect(data.background_photos[0].url).toContain('photo1.jpg')
   })
 
   it('should override manually activated layout with schedule', async () => {

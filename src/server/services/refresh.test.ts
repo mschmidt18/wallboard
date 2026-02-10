@@ -274,6 +274,83 @@ describe('collectDataSources', () => {
     const appleSources = sources.filter((s) => s.type === 'apple_photos')
     expect(appleSources).toHaveLength(0)
   })
+
+  it('collects Google Photos background source from layout theme', () => {
+    const now = new Date().toISOString()
+    db.prepare(
+      `INSERT INTO layouts (name, columns, row_height, is_active, theme, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run('BG Test', 12, 80, 1, JSON.stringify({
+      background_type: 'photos',
+      background_photos_source: 'google',
+      background_picker_session_id: 'bg_sess_123',
+    }), now, now)
+
+    const sources = collectDataSources(db)
+    const photosSources = sources.filter((s) => s.type === 'photos')
+    expect(photosSources).toHaveLength(1)
+    expect(photosSources[0].key).toBe('google_photos_picker_bg_sess_123')
+    expect(photosSources[0].params).toEqual({ picker_session_id: 'bg_sess_123' })
+  })
+
+  it('collects Apple Photos background source from layout theme', () => {
+    const now = new Date().toISOString()
+    db.prepare(
+      `INSERT INTO layouts (name, columns, row_height, is_active, theme, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run('Apple BG', 12, 80, 1, JSON.stringify({
+      background_type: 'photos',
+      background_photos_source: 'apple',
+      background_icloud_album_url: 'https://www.icloud.com/sharedalbum/#BgAlbumToken',
+    }), now, now)
+
+    const sources = collectDataSources(db)
+    const appleSources = sources.filter((s) => s.type === 'apple_photos')
+    expect(appleSources).toHaveLength(1)
+    expect(appleSources[0].key).toBe('apple_photos_BgAlbumToken')
+    expect(appleSources[0].params).toEqual({
+      icloud_album_url: 'https://www.icloud.com/sharedalbum/#BgAlbumToken',
+    })
+  })
+
+  it('deduplicates widget and background using same picker session', () => {
+    const now = new Date().toISOString()
+    db.prepare(
+      `INSERT INTO layouts (name, columns, row_height, is_active, theme, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run('Dedup Test', 12, 80, 1, JSON.stringify({
+      background_type: 'photos',
+      background_photos_source: 'google',
+      background_picker_session_id: 'shared_sess',
+    }), now, now)
+
+    const layout = db.prepare('SELECT id FROM layouts WHERE is_active = 1').get() as { id: number }
+    db.prepare(
+      `INSERT INTO widgets (layout_id, widget_type, config, position_x, position_y, width, height, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(layout.id, 'photos', JSON.stringify({
+      photos_source: 'google',
+      picker_session_id: 'shared_sess',
+    }), 0, 0, 4, 3, now, now)
+
+    const sources = collectDataSources(db)
+    const photosSources = sources.filter((s) => s.type === 'photos')
+    expect(photosSources).toHaveLength(1)
+    expect(photosSources[0].key).toBe('google_photos_picker_shared_sess')
+  })
+
+  it('skips layouts without background_type photos', () => {
+    const now = new Date().toISOString()
+    db.prepare(
+      `INSERT INTO layouts (name, columns, row_height, is_active, theme, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run('Color BG', 12, 80, 1, JSON.stringify({
+      background: '#1a1a2e',
+    }), now, now)
+
+    const sources = collectDataSources(db)
+    expect(sources).toHaveLength(0)
+  })
 })
 
 describe('refreshOnce', () => {

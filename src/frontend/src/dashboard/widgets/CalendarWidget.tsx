@@ -65,7 +65,7 @@ function groupEventsByDay(events: CalendarEvent[]): Map<string, CalendarEvent[]>
 export default function CalendarWidget({ config, data }: CalendarWidgetProps) {
   if (!data) {
     return (
-      <div className="h-full flex items-center justify-center text-white/50 text-lg">
+      <div className="h-full flex items-center justify-center opacity-50 text-lg">
         Waiting for data...
       </div>
     );
@@ -75,7 +75,7 @@ export default function CalendarWidget({ config, data }: CalendarWidgetProps) {
 
   if (events.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-white/50 text-lg">
+      <div className="h-full flex items-center justify-center opacity-50 text-lg">
         No upcoming events
       </div>
     );
@@ -84,13 +84,13 @@ export default function CalendarWidget({ config, data }: CalendarWidgetProps) {
   const grouped = groupEventsByDay(events);
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide p-4 text-white">
+    <div className="h-full overflow-y-auto scrollbar-hide p-4">
       {config.title ? (
         <h2 className="text-lg font-semibold mb-3">{String(config.title)}</h2>
       ) : null}
       {Array.from(grouped.entries()).map(([dayLabel, dayEvents]) => (
         <div key={dayLabel} className="mb-4 last:mb-0">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-white/60 mb-2">
+          <h3 className="text-sm font-semibold uppercase tracking-wider opacity-60 mb-2">
             {dayLabel}
           </h3>
           <ul className="space-y-1.5">
@@ -101,7 +101,7 @@ export default function CalendarWidget({ config, data }: CalendarWidgetProps) {
                   style={{ backgroundColor: event.color || "#4285f4" }}
                 />
                 <div className="min-w-0">
-                  <span className="text-sm text-white/70 mr-2">
+                  <span className="text-sm opacity-70 mr-2">
                     {event.all_day ? "All day" : formatTime(event.start)}
                   </span>
                   <span className="text-sm">{event.title}</span>

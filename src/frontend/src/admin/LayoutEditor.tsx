@@ -84,6 +84,7 @@ export default function LayoutEditor() {
         row_height: data.row_height,
       });
       setThemeForm({
+        ...data.theme,
         background: data.theme?.background ?? DEFAULT_THEME.background,
         text_color: data.theme?.text_color ?? DEFAULT_THEME.text_color,
         widget_background: data.theme?.widget_background ?? DEFAULT_THEME.widget_background,

@@ -57,7 +57,7 @@ export default function NotesWidget({ config }: NotesWidgetProps) {
   const lines = content.split("\n");
 
   return (
-    <div className={`h-full overflow-auto p-4 text-white ${sizeClass}`}>
+    <div className={`h-full overflow-auto p-4 ${sizeClass}`}>
       {lines.map((line, i) => renderLine(line, i))}
     </div>
   );
