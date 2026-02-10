@@ -1,7 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { GridLayout, getCompactor } from "react-grid-layout";
-import type { LayoutItem, Layout as RGLLayout } from "react-grid-layout";
+import {
+  GridLayout,
+  cloneLayoutItem,
+  sortLayoutItemsByRowCol,
+  getFirstCollision,
+} from "react-grid-layout";
+import type { LayoutItem, Layout as RGLLayout, Compactor } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { api } from "../shared/api";
@@ -27,8 +32,29 @@ const DEFAULT_SIZES: Record<WidgetType, { w: number; h: number }> = {
   notes: { w: 2, h: 3 },
 };
 
-// Vertical compaction: widgets displace downward on collision, no overlap
-const verticalCompactor = getCompactor("vertical");
+// Free-form placement: resolve overlaps by pushing down,
+// but never pull items upward to fill gaps.
+const freeFormCompactor: Compactor = {
+  type: "vertical",
+  allowOverlap: false,
+  compact(layout) {
+    const sorted = sortLayoutItemsByRowCol(layout);
+    const resolved: LayoutItem[] = [];
+    const out = new Array<LayoutItem>(layout.length);
+    for (const item of sorted) {
+      if (!item) continue;
+      const l = cloneLayoutItem(item);
+      // Push down past any collision (skip the "move up" compaction step)
+      let collision: LayoutItem | undefined;
+      while ((collision = getFirstCollision(resolved, l)) !== undefined) {
+        l.y = collision.y + collision.h;
+      }
+      resolved.push(l);
+      out[layout.indexOf(item)] = l;
+    }
+    return out;
+  },
+};
 
 function getGridBackground(width: number, cols: number, rowHeight: number) {
   const colWidth = width / cols;
@@ -437,7 +463,7 @@ export default function LayoutEditor() {
             dragConfig={{
               cancel: ".no-drag",
             }}
-            compactor={verticalCompactor}
+            compactor={freeFormCompactor}
             onLayoutChange={handleLayoutChange}
           >
             {layout.widgets.map((widget) => {
