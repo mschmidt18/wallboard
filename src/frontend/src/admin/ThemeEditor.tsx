@@ -493,7 +493,7 @@ export default function ThemeEditor({ value, onChange }: ThemeEditorProps) {
             style={{
               color: value.text_color === "light" ? "#ffffff" : "#1a1a1a",
               fontFamily: FONT_FAMILIES.find((f) => f.value === value.font_family)?.css,
-              fontSize: value.font_scale === "small" ? "0.75rem" : value.font_scale === "large" ? "1.125rem" : "0.875rem",
+              fontSize: value.font_scale === "small" ? "1rem" : value.font_scale === "large" ? "1.25rem" : "1.125rem",
             }}
           >
             {backgroundType === "photos" ? "Photo Slideshow Background" : "Sample Widget Text"}

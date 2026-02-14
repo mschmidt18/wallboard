@@ -32,8 +32,8 @@ export default function ClockWidget({ config }: ClockWidgetProps) {
 
   return (
     <div className="h-full flex flex-col items-center justify-center">
-      <div className="text-6xl font-light tracking-wide">{timeStr}</div>
-      <div className="text-xl mt-2 opacity-70">{dateStr}</div>
+      <div className="text-d-6xl font-light tracking-wide">{timeStr}</div>
+      <div className="text-d-xl mt-2 opacity-70">{dateStr}</div>
     </div>
   );
 }

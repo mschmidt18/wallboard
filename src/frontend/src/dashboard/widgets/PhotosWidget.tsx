@@ -24,7 +24,7 @@ export default function PhotosWidget({ config, data }: PhotosWidgetProps) {
   if (!hasPhotos) {
     return (
       <div className="h-full flex items-center justify-center opacity-50">
-        <span className="text-lg">No photos</span>
+        <span className="text-d-lg">No photos</span>
       </div>
     );
   }

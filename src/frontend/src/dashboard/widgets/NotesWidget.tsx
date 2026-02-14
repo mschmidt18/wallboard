@@ -6,29 +6,29 @@ interface NotesWidgetProps {
 }
 
 const fontSizeClasses: Record<string, string> = {
-  small: "text-sm",
-  medium: "text-base",
-  large: "text-lg",
+  small: "text-d-sm",
+  medium: "text-d-base",
+  large: "text-d-lg",
 };
 
 function renderLine(line: string, index: number) {
   if (line.startsWith("# ")) {
     return (
-      <h1 key={index} className="text-2xl font-bold mb-1">
+      <h1 key={index} className="text-d-2xl font-bold mb-1">
         {line.slice(2)}
       </h1>
     );
   }
   if (line.startsWith("## ")) {
     return (
-      <h2 key={index} className="text-xl font-semibold mb-1">
+      <h2 key={index} className="text-d-xl font-semibold mb-1">
         {line.slice(3)}
       </h2>
     );
   }
   if (line.startsWith("### ")) {
     return (
-      <h3 key={index} className="text-lg font-semibold mb-1">
+      <h3 key={index} className="text-d-lg font-semibold mb-1">
         {line.slice(4)}
       </h3>
     );

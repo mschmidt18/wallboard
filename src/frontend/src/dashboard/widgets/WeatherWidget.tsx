@@ -91,7 +91,7 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
 
   if (!data || !data.current) {
     return (
-      <div className="h-full flex items-center justify-center opacity-50 text-lg">
+      <div className="h-full flex items-center justify-center opacity-50 text-d-lg">
         Waiting for data...
       </div>
     );
@@ -128,19 +128,19 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
         </div>
         <div
           className="font-light tracking-tight"
-          style={{ fontSize: "clamp(2rem, 12cqi, 4rem)" }}
+          style={{ fontSize: "clamp(2em, 12cqi, 4em)" }}
         >
           {Math.round(current.temperature)}{unitSymbol}
         </div>
         <div
           className="opacity-90 mt-1"
-          style={{ fontSize: "clamp(0.75rem, 4cqi, 1.125rem)" }}
+          style={{ fontSize: "clamp(0.75em, 4cqi, 1.125em)" }}
         >
           {current.condition}
         </div>
         <div
           className="flex gap-4 mt-2 opacity-80 flex-wrap justify-center"
-          style={{ fontSize: "clamp(0.625rem, 3cqi, 0.875rem)" }}
+          style={{ fontSize: "clamp(0.625em, 3cqi, 0.875em)" }}
         >
           <span>Feels {Math.round(current.feels_like)}{unitSymbol}</span>
           <span>Humidity {current.humidity}%</span>
@@ -149,7 +149,7 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
         {forecastDays === 1 && today && (
           <div
             className="flex gap-3 mt-2 opacity-80"
-            style={{ fontSize: "clamp(0.625rem, 3cqi, 0.875rem)" }}
+            style={{ fontSize: "clamp(0.625em, 3cqi, 0.875em)" }}
           >
             <span>Hi {Math.round(today.high)}&deg;</span>
             <span>Lo {Math.round(today.low)}&deg;</span>
@@ -179,7 +179,7 @@ export default function WeatherWidget({ config, data }: WeatherWidgetProps) {
                   ? "flex items-center gap-3"
                   : "flex flex-col items-center min-w-0"
               }
-              style={{ fontSize: "clamp(0.625rem, 3cqi, 0.875rem)" }}
+              style={{ fontSize: "clamp(0.625em, 3cqi, 0.875em)" }}
             >
               <span
                 className={

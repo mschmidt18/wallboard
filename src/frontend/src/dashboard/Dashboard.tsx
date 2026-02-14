@@ -20,9 +20,9 @@ const FONT_FAMILY_CSS: Record<string, string> = {
 };
 
 const FONT_SCALE_CSS: Record<string, number> = {
-  small: 0.875,
-  medium: 1,
-  large: 1.125,
+  small: 1,
+  medium: 1.125,
+  large: 1.25,
 };
 
 const WIDGET_BG_CSS: Record<string, string> = {
@@ -45,7 +45,7 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
       return <PhotosWidget config={widget.config} data={widget.data} />;
     default:
       return (
-        <div className="h-full flex items-center justify-center opacity-50 text-sm">
+        <div className="h-full flex items-center justify-center opacity-50 text-d-sm">
           Unknown widget: {widget.widget_type}
         </div>
       );
@@ -114,7 +114,7 @@ export default function Dashboard() {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-900 text-white">
         <div className="text-center">
-          <h1 className="text-3xl mb-4">Wallboard</h1>
+          <h1 className="text-d-3xl mb-4">Wallboard</h1>
           <p className="text-gray-400">
             Visit <code>http://&lt;device-ip&gt;:8000/admin</code> to get started.
           </p>
@@ -189,7 +189,7 @@ export default function Dashboard() {
         ))}
       </div>
       {error && (
-        <div className="fixed bottom-4 right-4 bg-red-900/80 text-white px-3 py-1 rounded text-sm">
+        <div className="fixed bottom-4 right-4 bg-red-900/80 text-white px-3 py-1 rounded text-d-sm">
           Connection lost - showing cached data
         </div>
       )}

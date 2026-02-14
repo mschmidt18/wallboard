@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+@theme {
+  --text-d-xs: 0.75em;
+  --text-d-sm: 0.875em;
+  --text-d-base: 1em;
+  --text-d-lg: 1.125em;
+  --text-d-xl: 1.25em;
+  --text-d-2xl: 1.5em;
+  --text-d-3xl: 1.875em;
+  --text-d-6xl: 3.75em;
+}
+
 /* Hide scrollbars but keep scroll functionality (Chromium on Linux shows ugly persistent scrollbars) */
 .scrollbar-hide {
   scrollbar-width: none; /* Firefox */
