@@ -41,6 +41,8 @@ export default function CalendarConfig({ config, onChange }: Props) {
 
   const [selectedSources, setSelectedSources] = useState<CalendarSource[]>(() => initSources(config));
   const [colors, setColors] = useState<Record<string, string>>(() => initColors(config));
+  const [view, setView] = useState<"list" | "monthly">((config.view as "list" | "monthly" | undefined) ?? "list");
+  const [weeks, setWeeks] = useState<number>((config.weeks as number | undefined) ?? 4);
   const [daysAhead, setDaysAhead] = useState<number>((config.days_ahead as number | undefined) ?? 7);
   const [title, setTitle] = useState<string>((config.title as string | undefined) ?? "");
 
@@ -77,11 +79,22 @@ export default function CalendarConfig({ config, onChange }: Props) {
     return selectedSources.some((s) => s.type === source.type && String(s.id) === String(source.id));
   }
 
-  function emitChange(nextSources: CalendarSource[], nextColors: Record<string, string>, nextDays: number, nextTitle?: string) {
+  function emitChange(
+    nextSources: CalendarSource[],
+    nextColors: Record<string, string>,
+    nextDays: number,
+    nextTitle?: string,
+    nextView?: "list" | "monthly",
+    nextWeeks?: number,
+  ) {
+    const v = nextView ?? view;
+    const w = nextWeeks ?? weeks;
     const cfg: Record<string, unknown> = {
       calendar_sources: nextSources,
-      days_ahead: nextDays,
+      days_ahead: v === "monthly" ? w * 7 : nextDays,
       colors: nextColors,
+      view: v,
+      weeks: w,
     };
     const t = nextTitle ?? title;
     if (t) cfg.title = t;
@@ -239,25 +252,70 @@ export default function CalendarConfig({ config, onChange }: Props) {
         </div>
       )}
 
-      {/* Days ahead slider */}
+      {/* View toggle */}
       <div>
-        <label htmlFor="calendar-days" className="block text-sm font-medium text-gray-700 mb-1">
-          Days ahead: {daysAhead}
+        <label htmlFor="calendar-view" className="block text-sm font-medium text-gray-700 mb-1">
+          View
         </label>
-        <input
-          id="calendar-days"
-          type="range"
-          min={1}
-          max={30}
-          value={daysAhead}
-          onChange={(e) => handleDaysChange(Number(e.target.value))}
-          className="w-full accent-indigo-600"
-        />
-        <div className="flex justify-between text-xs text-gray-400 mt-1">
-          <span>1</span>
-          <span>30</span>
-        </div>
+        <select
+          id="calendar-view"
+          value={view}
+          onChange={(e) => {
+            const v = e.target.value as "list" | "monthly";
+            setView(v);
+            emitChange(selectedSources, colors, daysAhead, undefined, v);
+          }}
+          className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        >
+          <option value="list">List</option>
+          <option value="monthly">Monthly</option>
+        </select>
       </div>
+
+      {/* Days ahead slider (list view) or Weeks slider (monthly view) */}
+      {view === "monthly" ? (
+        <div>
+          <label htmlFor="calendar-weeks" className="block text-sm font-medium text-gray-700 mb-1">
+            Weeks to display: {weeks}
+          </label>
+          <input
+            id="calendar-weeks"
+            type="range"
+            min={1}
+            max={5}
+            value={weeks}
+            onChange={(e) => {
+              const w = Number(e.target.value);
+              setWeeks(w);
+              emitChange(selectedSources, colors, daysAhead, undefined, undefined, w);
+            }}
+            className="w-full accent-indigo-600"
+          />
+          <div className="flex justify-between text-xs text-gray-400 mt-1">
+            <span>1</span>
+            <span>5</span>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label htmlFor="calendar-days" className="block text-sm font-medium text-gray-700 mb-1">
+            Days ahead: {daysAhead}
+          </label>
+          <input
+            id="calendar-days"
+            type="range"
+            min={1}
+            max={30}
+            value={daysAhead}
+            onChange={(e) => handleDaysChange(Number(e.target.value))}
+            className="w-full accent-indigo-600"
+          />
+          <div className="flex justify-between text-xs text-gray-400 mt-1">
+            <span>1</span>
+            <span>30</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

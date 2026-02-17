@@ -1,65 +1,99 @@
+import {
+  type CalendarEvent,
+  groupEventsByDay,
+  formatTime,
+  generateWeekGrid,
+  getEventsForDate,
+  isToday,
+  isPast,
+} from "./calendar-utils";
+
 interface CalendarWidgetProps {
   config: Record<string, unknown>;
   data?: Record<string, unknown> | null;
 }
 
-interface CalendarEvent {
-  title: string;
-  start: string;
-  end: string;
-  calendar_name?: string;
-  color?: string;
-  all_day: boolean;
-}
+const DAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MAX_EVENTS_PER_CELL = 3;
 
-function getDayLabel(date: Date, today: Date): string {
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const diffMs = dateStart.getTime() - todayStart.getTime();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Tomorrow";
-  return date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
-}
-
-function formatTime(isoString: string): string {
-  const date = new Date(isoString);
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
-function parseEventDate(event: CalendarEvent): Date {
-  // All-day events have date-only strings like "2026-02-14".
-  // new Date("2026-02-14") parses as UTC midnight, which shifts to the
-  // previous day in western timezones.  Parse the parts manually so the
-  // Date is created in local time instead.
-  if (event.all_day && /^\d{4}-\d{2}-\d{2}$/.test(event.start)) {
-    const [y, m, d] = event.start.split("-").map(Number);
-    return new Date(y, m - 1, d);
-  }
-  return new Date(event.start);
-}
-
-function groupEventsByDay(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
+function MonthlyGrid({ events, weeks }: { events: CalendarEvent[]; weeks: number }) {
   const today = new Date();
-  const groups = new Map<string, CalendarEvent[]>();
+  const grid = generateWeekGrid(weeks, today);
 
-  for (const event of events) {
-    const eventDate = parseEventDate(event);
-    const label = getDayLabel(eventDate, today);
-    const existing = groups.get(label);
-    if (existing) {
-      existing.push(event);
-    } else {
-      groups.set(label, [event]);
-    }
-  }
+  return (
+    <div className="h-full flex flex-col">
+      {/* Day-of-week header */}
+      <div className="grid grid-cols-7 mb-1">
+        {DAY_HEADERS.map((d, i) => (
+          <div key={i} className="text-left text-d-xs font-semibold uppercase opacity-50 pl-0.5">
+            {d}
+          </div>
+        ))}
+      </div>
 
-  return groups;
+      {/* Week rows */}
+      <div className="grid flex-1" style={{ gridTemplateRows: `repeat(${weeks}, 1fr)` }}>
+        {grid.map((week, wi) => (
+          <div key={wi} className="grid grid-cols-7 min-h-0">
+            {week.map((date, di) => {
+              const dayEvents = getEventsForDate(events, date);
+              const past = isPast(date, today);
+              const todayCell = isToday(date, today);
+              const overflow = dayEvents.length > MAX_EVENTS_PER_CELL;
+              const shown = dayEvents.slice(0, MAX_EVENTS_PER_CELL);
+
+              return (
+                <div
+                  key={di}
+                  className={`flex flex-col px-0.5 py-0.5 overflow-hidden border-t border-r border-white/30 last:border-r-0 ${past ? "opacity-40" : ""}`}
+                >
+                  {/* Date number */}
+                  <div
+                    className={`text-d-sm text-left leading-tight ${
+                      todayCell
+                        ? "font-bold"
+                        : ""
+                    }`}
+                  >
+                    {todayCell ? (
+                      <span className="inline-flex items-center justify-center min-w-6 h-6 px-1 rounded-full bg-red-600 font-bold">
+                        {date.getDate()}
+                      </span>
+                    ) : (
+                      date.getDate()
+                    )}
+                  </div>
+
+                  {/* Event labels */}
+                  <div className="flex-1 min-h-0 overflow-hidden space-y-px mt-px">
+                    {shown.map((event, ei) => (
+                      <div
+                        key={ei}
+                        className="flex items-center gap-0.5 min-w-0"
+                      >
+                        <span
+                          className="w-0.5 h-3 shrink-0 rounded-full"
+                          style={{ backgroundColor: event.color || "#4285f4" }}
+                        />
+                        <span className="text-d-xs truncate leading-tight">
+                          {event.title}
+                        </span>
+                      </div>
+                    ))}
+                    {overflow && (
+                      <div className="text-d-xs opacity-50 leading-tight pl-1">
+                        +{dayEvents.length - MAX_EVENTS_PER_CELL} more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function CalendarWidget({ config, data }: CalendarWidgetProps) {
@@ -81,6 +115,23 @@ export default function CalendarWidget({ config, data }: CalendarWidgetProps) {
     );
   }
 
+  const isMonthly = config.view === "monthly";
+
+  if (isMonthly) {
+    const weeks = (config.weeks as number | undefined) ?? 4;
+    return (
+      <div className="h-full overflow-hidden p-4 flex flex-col">
+        {config.title ? (
+          <h2 className="text-d-lg font-semibold mb-2">{String(config.title)}</h2>
+        ) : null}
+        <div className="flex-1 min-h-0">
+          <MonthlyGrid events={events} weeks={weeks} />
+        </div>
+      </div>
+    );
+  }
+
+  // List view (default)
   const grouped = groupEventsByDay(events);
 
   return (
