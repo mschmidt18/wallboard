@@ -9,6 +9,18 @@ interface SlideshowResult {
   backSrc: string | null;
   showFront: boolean;
   hasPhotos: boolean;
+  advance: () => void;
+}
+
+const VIDEO_EXTENSIONS = [".mp4", ".mov", ".m4v", ".webm"];
+
+export function isVideoUrl(url: string): boolean {
+  try {
+    const pathname = new URL(url).pathname.toLowerCase();
+    return VIDEO_EXTENSIONS.some((ext) => pathname.endsWith(ext));
+  } catch {
+    return url.toLowerCase().includes(".mp4");
+  }
 }
 
 export function useSlideshow(photos: Photo[], intervalMs: number): SlideshowResult {
@@ -16,7 +28,7 @@ export function useSlideshow(photos: Photo[], intervalMs: number): SlideshowResu
   const indexRef = useRef(0);
   const [frontSrc, setFrontSrc] = useState<string | null>(null);
   const [backSrc, setBackSrc] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const photosKey = useMemo(
     () => photos.map((p) => p.url).join(","),
@@ -33,13 +45,79 @@ export function useSlideshow(photos: Photo[], intervalMs: number): SlideshowResu
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-shuffle only when photo set changes
   }, [photosKey]);
 
-  const preloadImage = useCallback((src: string): Promise<void> => {
+  // Use ref so setTimeout callbacks always see latest shuffled array
+  const shuffledRef = useRef(shuffled);
+  shuffledRef.current = shuffled;
+
+  const intervalRef = useRef(intervalMs);
+  intervalRef.current = intervalMs;
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const preload = useCallback((src: string): Promise<void> => {
+    // Skip preloading for videos — the <video> element handles its own loading
+    if (isVideoUrl(src)) return Promise.resolve();
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => resolve();
       img.onerror = () => resolve();
       img.src = src;
     });
+  }, []);
+
+  // Core advance function stored in ref to avoid stale closures
+  const advanceFnRef = useRef<() => void>(() => {});
+
+  const scheduleNext = useCallback(() => {
+    clearTimer();
+    const currentUrl = shuffledRef.current[indexRef.current]?.url;
+    if (currentUrl && isVideoUrl(currentUrl)) {
+      // Safety fallback: advance after 5 min if onEnded never fires (broken video)
+      timerRef.current = setTimeout(() => {
+        advanceFnRef.current();
+      }, 5 * 60 * 1000);
+      return;
+    }
+    timerRef.current = setTimeout(() => {
+      advanceFnRef.current();
+    }, intervalRef.current);
+  }, [clearTimer]);
+
+  const scheduleRef = useRef(scheduleNext);
+  scheduleRef.current = scheduleNext;
+
+  useEffect(() => {
+    advanceFnRef.current = () => {
+      const arr = shuffledRef.current;
+      if (arr.length <= 1) return;
+
+      clearTimer();
+
+      const nextIdx = (indexRef.current + 1) % arr.length;
+      indexRef.current = nextIdx;
+      const nextUrl = arr[nextIdx].url;
+
+      preload(nextUrl).then(() => {
+        setShowFront((front) => {
+          if (front) {
+            setBackSrc(nextUrl);
+          } else {
+            setFrontSrc(nextUrl);
+          }
+          return !front;
+        });
+        scheduleRef.current();
+      });
+    };
+  }, [clearTimer, preload]);
+
+  const advance = useCallback(() => {
+    advanceFnRef.current();
   }, []);
 
   // Initialize the first image when the photo set changes.
@@ -53,37 +131,22 @@ export function useSlideshow(photos: Photo[], intervalMs: number): SlideshowResu
     // eslint-disable-next-line react-hooks/exhaustive-deps -- photosKey is the stable dep
   }, [photosKey]);
 
-  // Cycle through photos on interval
+  // Start cycling timer
   useEffect(() => {
     if (shuffled.length <= 1) return;
 
-    timerRef.current = setInterval(() => {
-      const nextIdx = (indexRef.current + 1) % shuffled.length;
-      indexRef.current = nextIdx;
-      const nextUrl = shuffled[nextIdx].url;
-
-      preloadImage(nextUrl).then(() => {
-        setShowFront((front) => {
-          if (front) {
-            setBackSrc(nextUrl);
-          } else {
-            setFrontSrc(nextUrl);
-          }
-          return !front;
-        });
-      });
-    }, intervalMs);
+    scheduleRef.current();
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      clearTimer();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- photosKey and shuffled.length are the stable deps
-  }, [shuffled.length, intervalMs, preloadImage, photosKey]);
+  }, [shuffled.length, intervalMs, photosKey, clearTimer]);
 
   return {
     frontSrc,
     backSrc,
     showFront,
     hasPhotos: shuffled.length > 0,
+    advance,
   };
 }
