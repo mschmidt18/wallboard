@@ -139,4 +139,99 @@ describe('Layout routes', () => {
     const resp = await app.inject({ method: 'GET', url: '/api/layouts' })
     expect(resp.statusCode).toBe(401)
   })
+
+  describe('POST /api/layouts/:id/duplicate', () => {
+    it('returns 401 without auth', async () => {
+      const resp = await app.inject({ method: 'POST', url: '/api/layouts/1/duplicate' })
+      expect(resp.statusCode).toBe(401)
+    })
+
+    it('returns 404 for non-existent layout', async () => {
+      const resp = await injectAuth(app, 'POST', '/api/layouts/999/duplicate', {}, cookie)
+      expect(resp.statusCode).toBe(404)
+    })
+
+    it('duplicates layout with " (copy)" name', async () => {
+      const createResp = await injectAuth(app, 'POST', '/api/layouts', {
+        payload: { name: 'Dashboard' },
+      }, cookie)
+      const layoutId = createResp.json().id
+
+      const resp = await injectAuth(app, 'POST', `/api/layouts/${layoutId}/duplicate`, {}, cookie)
+      expect(resp.statusCode).toBe(201)
+      const data = resp.json()
+      expect(data.name).toBe('Dashboard (copy)')
+      expect(data.id).not.toBe(layoutId)
+    })
+
+    it('copies layout settings', async () => {
+      const createResp = await injectAuth(app, 'POST', '/api/layouts', {
+        payload: { name: 'Themed', columns: 8, row_height: 100, theme: { background: '#000' } },
+      }, cookie)
+      const layoutId = createResp.json().id
+
+      const resp = await injectAuth(app, 'POST', `/api/layouts/${layoutId}/duplicate`, {}, cookie)
+      const data = resp.json()
+      expect(data.columns).toBe(8)
+      expect(data.row_height).toBe(100)
+      expect(data.theme).toEqual({ background: '#000' })
+    })
+
+    it('new layout is inactive even if source is active', async () => {
+      const createResp = await injectAuth(app, 'POST', '/api/layouts', {
+        payload: { name: 'Active Layout' },
+      }, cookie)
+      const layoutId = createResp.json().id
+      await injectAuth(app, 'POST', `/api/layouts/${layoutId}/activate`, {}, cookie)
+
+      const resp = await injectAuth(app, 'POST', `/api/layouts/${layoutId}/duplicate`, {}, cookie)
+      expect(resp.json().is_active).toBe(false)
+    })
+
+    it('copies all widgets with config and positions', async () => {
+      const createResp = await injectAuth(app, 'POST', '/api/layouts', {
+        payload: { name: 'With Widgets' },
+      }, cookie)
+      const layoutId = createResp.json().id
+
+      await injectAuth(app, 'POST', `/api/layouts/${layoutId}/widgets`, {
+        payload: { widget_type: 'clock', config: { format: '24h' }, position_x: 0, position_y: 0, width: 4, height: 2 },
+      }, cookie)
+      await injectAuth(app, 'POST', `/api/layouts/${layoutId}/widgets`, {
+        payload: { widget_type: 'weather', config: { zip: '90210' }, position_x: 4, position_y: 0, width: 6, height: 3 },
+      }, cookie)
+
+      const resp = await injectAuth(app, 'POST', `/api/layouts/${layoutId}/duplicate`, {}, cookie)
+      expect(resp.statusCode).toBe(201)
+      const data = resp.json()
+      expect(data.widgets).toHaveLength(2)
+
+      const clock = data.widgets.find((w: { widget_type: string }) => w.widget_type === 'clock')
+      expect(clock.config).toEqual({ format: '24h' })
+      expect(clock.position_x).toBe(0)
+      expect(clock.position_y).toBe(0)
+      expect(clock.width).toBe(4)
+      expect(clock.height).toBe(2)
+      expect(clock.layout_id).toBe(data.id)
+      expect(clock.id).not.toBe(createResp.json().widgets?.[0]?.id)
+
+      const weather = data.widgets.find((w: { widget_type: string }) => w.widget_type === 'weather')
+      expect(weather.config).toEqual({ zip: '90210' })
+      expect(weather.position_x).toBe(4)
+      expect(weather.width).toBe(6)
+      expect(weather.height).toBe(3)
+      expect(weather.layout_id).toBe(data.id)
+    })
+
+    it('duplicates layout with no widgets', async () => {
+      const createResp = await injectAuth(app, 'POST', '/api/layouts', {
+        payload: { name: 'Empty' },
+      }, cookie)
+      const layoutId = createResp.json().id
+
+      const resp = await injectAuth(app, 'POST', `/api/layouts/${layoutId}/duplicate`, {}, cookie)
+      expect(resp.statusCode).toBe(201)
+      expect(resp.json().widgets).toEqual([])
+    })
+  })
 })

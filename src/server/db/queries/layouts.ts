@@ -153,6 +153,34 @@ export function deleteLayout(db: Database.Database, id: number): boolean {
   return result.changes > 0
 }
 
+export function duplicateLayout(db: Database.Database, id: number): LayoutResponse | null {
+  const row = db.prepare('SELECT * FROM layouts WHERE id = ?').get(id) as LayoutRow | undefined
+  if (!row) return null
+
+  const now = new Date().toISOString()
+
+  const dupe = db.transaction(() => {
+    const result = db.prepare(
+      `INSERT INTO layouts (name, columns, row_height, is_active, theme, created_at, updated_at)
+       VALUES (?, ?, ?, 0, ?, ?, ?)`
+    ).run(`${row.name} (copy)`, row.columns, row.row_height, row.theme, now, now)
+    const newId = Number(result.lastInsertRowid)
+
+    const widgets = db.prepare('SELECT * FROM widgets WHERE layout_id = ?').all(id) as WidgetRow[]
+    const insertWidget = db.prepare(
+      `INSERT INTO widgets (layout_id, widget_type, config, position_x, position_y, width, height, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    for (const w of widgets) {
+      insertWidget.run(newId, w.widget_type, w.config, w.position_x, w.position_y, w.width, w.height, now, now)
+    }
+
+    return newId
+  })()
+
+  return getLayout(db, dupe)
+}
+
 export function activateLayout(db: Database.Database, id: number): LayoutResponse | null {
   const existing = db.prepare('SELECT * FROM layouts WHERE id = ?').get(id) as LayoutRow | undefined
   if (!existing) return null

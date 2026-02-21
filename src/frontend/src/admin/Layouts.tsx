@@ -10,6 +10,7 @@ export default function Layouts() {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchLayouts();
@@ -50,6 +51,19 @@ export default function Layouts() {
       await fetchLayouts();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to activate layout");
+    }
+  }
+
+  async function handleDuplicate(id: number) {
+    setDuplicatingId(id);
+    try {
+      setError(null);
+      await api.duplicateLayout(id);
+      await fetchLayouts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to duplicate layout");
+    } finally {
+      setDuplicatingId(null);
     }
   }
 
@@ -238,6 +252,13 @@ export default function Layouts() {
                     Activate
                   </button>
                 )}
+                <button
+                  onClick={() => handleDuplicate(layout.id)}
+                  disabled={duplicatingId === layout.id}
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {duplicatingId === layout.id ? "Duplicating..." : "Duplicate"}
+                </button>
                 <button
                   onClick={() => handleDelete(layout.id, layout.name)}
                   className="ml-auto rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"

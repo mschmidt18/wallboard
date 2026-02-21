@@ -77,6 +77,8 @@ export const api = {
     request<void>(`/layouts/${id}`, { method: "DELETE" }),
   activateLayout: (id: number) =>
     request<Layout>(`/layouts/${id}/activate`, { method: "POST" }),
+  duplicateLayout: (id: number) =>
+    request<Layout>(`/layouts/${id}/duplicate`, { method: "POST" }),
   addWidget: (layoutId: number, data: WidgetCreate) =>
     request<Widget>(`/layouts/${layoutId}/widgets`, {
       method: "POST",

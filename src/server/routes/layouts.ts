@@ -8,6 +8,7 @@ import {
   updateLayout,
   deleteLayout,
   activateLayout,
+  duplicateLayout,
 } from '../db/queries/layouts.js'
 import {
   LayoutCreateSchema,
@@ -79,5 +80,17 @@ export async function layoutRoutes(app: FastifyInstance): Promise<void> {
       return
     }
     return layout
+  })
+
+  app.post<{ Params: { id: string } }>('/api/layouts/:id/duplicate', {
+    preHandler: [requireAuth],
+  }, async (request, reply) => {
+    const id = Number(request.params.id)
+    const layout = duplicateLayout(db, id)
+    if (!layout) {
+      reply.code(404).send({ error: 'Layout not found' })
+      return
+    }
+    reply.code(201).send(layout)
   })
 }
