@@ -14,7 +14,7 @@ interface CalendarWidgetProps {
 }
 
 const DAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MAX_EVENTS_PER_CELL = 3;
+const MAX_EVENTS_PER_CELL = 6;
 
 function MonthlyGrid({ events, weeks }: { events: CalendarEvent[]; weeks: number }) {
   const today = new Date();
