@@ -12,9 +12,11 @@ import { fetchEvents } from './google-calendar.js'
 import { getSessionMediaItems } from './google-photos.js'
 import { fetchIcsEvents } from './ical-service.js'
 import { fetchApplePhotos, extractAlbumToken } from './apple-photos.js'
+import { fetchSchoolLunchMenu, schoolLunchSourceParams, schoolLunchCacheKey } from './schoolcafe.js'
+import type { SchoolLunchParams } from './schoolcafe.js'
 
 interface DataSource {
-  type: 'weather' | 'calendar' | 'photos' | 'ics_calendar' | 'apple_photos'
+  type: 'weather' | 'calendar' | 'photos' | 'ics_calendar' | 'apple_photos' | 'school_lunch'
   key: string
   params: Record<string, unknown>
   interval: number // seconds
@@ -181,6 +183,19 @@ export function collectDataSources(db: Database.Database): DataSource[] {
           }
         }
       }
+    } else if (widget.widget_type === 'school_lunch') {
+      const lunchParams = schoolLunchSourceParams(config)
+      if (lunchParams) {
+        const key = schoolLunchCacheKey(lunchParams)
+        if (!sources.has(key)) {
+          sources.set(key, {
+            type: 'school_lunch',
+            key,
+            params: lunchParams as unknown as Record<string, unknown>,
+            interval: DEFAULT_TTLS.school_lunch,
+          })
+        }
+      }
     } else if (widget.widget_type === 'photos') {
       const photosSource = config.photos_source as string | undefined
       const pickerSessionId = config.picker_session_id
@@ -330,6 +345,9 @@ export async function fetchSource(
     const albumUrl = params.icloud_album_url as string
     const photos = await fetchApplePhotos(albumUrl)
     return { photos }
+  } else if (type === 'school_lunch') {
+    const menu = await fetchSchoolLunchMenu(params as unknown as SchoolLunchParams)
+    return menu as unknown as Record<string, unknown>
   }
 
   return null

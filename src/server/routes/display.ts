@@ -8,6 +8,7 @@ import { evaluateSchedule } from '../services/schedule.js'
 import { loadOrCreateKey } from '../services/encryption.js'
 import { getValidAccessToken } from '../services/google-auth.js'
 import { extractAlbumToken } from '../services/apple-photos.js'
+import { schoolLunchSourceParams, schoolLunchCacheKey } from '../services/schoolcafe.js'
 import type { DisplayResponse, DisplayWidgetResponse } from '@shared/types.js'
 
 interface WidgetRow {
@@ -76,6 +77,11 @@ export function getCacheKey(widget: { widget_type: string; config: Record<string
     const sortedIds = [...calendarIds].sort()
     const daysAhead = (config.days_ahead as number) ?? 7
     return `google_calendar_${sortedIds.join('_')}_${daysAhead}`
+  } else if (widget_type === 'school_lunch') {
+    const lunchParams = schoolLunchSourceParams(config)
+    if (lunchParams) {
+      return schoolLunchCacheKey(lunchParams)
+    }
   } else if (widget_type === 'photos') {
     const photosSource = config.photos_source as string | undefined
     const pickerSessionId = config.picker_session_id

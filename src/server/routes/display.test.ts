@@ -78,6 +78,31 @@ describe('display routes', () => {
     expect(weatherWidget.data).toEqual({ temp: 72, condition: 'sunny' })
   })
 
+  it('should merge cached school lunch data into widgets', async () => {
+    const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
+      payload: { name: 'Lunch Test' },
+    }, cookie)
+    const layoutId = layoutResp.json().id
+    await injectAuth(app, 'POST', `/api/layouts/${layoutId}/activate`, {}, cookie)
+    const widgetResp = await injectAuth(app, 'POST', `/api/layouts/${layoutId}/widgets`, {
+      payload: {
+        widget_type: 'school_lunch',
+        config: { school_id: 'guid-1', grade: '01', meal_type: 'Lunch', serving_line: 'Regular', view: 'today' },
+        position_x: 0, position_y: 0, width: 4, height: 3,
+      },
+    }, cookie)
+    expect(widgetResp.statusCode).toBe(201)
+
+    const menu = { days: [{ date: '2026-08-31', entrees: ['Turkey Corn Dog'], vegetables: ['Steamed Corn'] }] }
+    upsertCache(db, 'school_lunch_guid-1_01_Lunch_Regular', menu, null)
+
+    const resp = await app.inject({ method: 'GET', url: '/api/display' })
+    expect(resp.statusCode).toBe(200)
+    const lunchWidget = resp.json().widgets[0]
+    expect(lunchWidget.widget_type).toBe('school_lunch')
+    expect(lunchWidget.data).toEqual(menu)
+  })
+
   it('should include default refresh interval', async () => {
     const layoutResp = await injectAuth(app, 'POST', '/api/layouts', {
       payload: { name: 'Interval Test' },
@@ -606,6 +631,16 @@ describe('display helper functions', () => {
     // calendar with calendar_sources returns null
     expect(getCacheKey({ widget_type: 'calendar', config: { calendar_sources: [{ type: 'google', id: 'primary' }] } }))
       .toBeNull()
+  })
+
+  it('getCacheKey returns school_lunch key with defaults applied', () => {
+    expect(getCacheKey({
+      widget_type: 'school_lunch',
+      config: { school_id: 'guid-1', grade: '02', meal_type: 'Breakfast', serving_line: 'Line B' },
+    })).toBe('school_lunch_guid-1_02_Breakfast_Line B')
+    expect(getCacheKey({ widget_type: 'school_lunch', config: { school_id: 'guid-1' } }))
+      .toBe('school_lunch_guid-1_01_Lunch_Regular')
+    expect(getCacheKey({ widget_type: 'school_lunch', config: {} })).toBeNull()
   })
 
   it('getCacheKey returns apple_photos key for apple source', () => {

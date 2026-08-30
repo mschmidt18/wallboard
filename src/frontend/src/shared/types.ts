@@ -50,7 +50,7 @@ export interface Settings {
 export interface Widget {
   id: number;
   layout_id?: number;
-  widget_type: "calendar" | "photos" | "weather" | "clock" | "notes";
+  widget_type: "calendar" | "photos" | "weather" | "clock" | "notes" | "school_lunch";
   config: Record<string, unknown>;
   data?: Record<string, unknown> | null;
   position_x: number;

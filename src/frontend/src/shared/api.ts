@@ -146,6 +146,17 @@ export const api = {
     request<{ media_items_set: boolean; photos?: { id: string; url: string; mimeType: string }[] }>(`/google/photos/picker-session/${sessionId}`),
   deletePhotoPickerSession: (sessionId: string) =>
     request<void>(`/google/photos/picker-session/${sessionId}`, { method: "DELETE" }),
+  schoolCafeLookup: (district: string) =>
+    request<{
+      district_id: number;
+      district_name: string;
+      schools: { id: string; name: string; type: string }[];
+      grades: string[];
+    }>(`/schoolcafe/lookup?district=${encodeURIComponent(district)}`),
+  schoolCafeServingLines: (schoolId: string, mealType: string) =>
+    request<{ serving_lines: string[] }>(
+      `/schoolcafe/serving-lines?school_id=${encodeURIComponent(schoolId)}&meal_type=${encodeURIComponent(mealType)}`,
+    ),
   getVersion: () => request<VersionResponse>("/system/version"),
   checkUpdate: () =>
     request<UpdateCheckResponse>("/system/check-update", { method: "POST" }),

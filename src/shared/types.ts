@@ -2,7 +2,7 @@ import { Type, type Static } from '@sinclair/typebox';
 
 // --- Widget Types ---
 
-export const WIDGET_TYPES = ['calendar', 'photos', 'weather', 'clock', 'notes'] as const;
+export const WIDGET_TYPES = ['calendar', 'photos', 'weather', 'clock', 'notes', 'school_lunch'] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
 // --- Theme ---

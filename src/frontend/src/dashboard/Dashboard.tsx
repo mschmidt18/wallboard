@@ -6,6 +6,7 @@ import NotesWidget from "./widgets/NotesWidget";
 import WeatherWidget from "./widgets/WeatherWidget";
 import CalendarWidget from "./widgets/CalendarWidget";
 import PhotosWidget from "./widgets/PhotosWidget";
+import SchoolLunchWidget from "./widgets/SchoolLunchWidget";
 import BackgroundSlideshow from "./BackgroundSlideshow";
 
 const DEFAULT_POLL_INTERVAL = 60_000;
@@ -43,6 +44,8 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
       return <CalendarWidget config={widget.config} data={widget.data} />;
     case "photos":
       return <PhotosWidget config={widget.config} data={widget.data} />;
+    case "school_lunch":
+      return <SchoolLunchWidget config={widget.config} data={widget.data} />;
     default:
       return (
         <div className="h-full flex items-center justify-center opacity-50 text-d-sm">

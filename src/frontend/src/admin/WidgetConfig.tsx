@@ -6,6 +6,7 @@ import NotesConfig from "./widget-configs/NotesConfig";
 import WeatherConfig from "./widget-configs/WeatherConfig";
 import CalendarConfig from "./widget-configs/CalendarConfig";
 import PhotosConfig from "./widget-configs/PhotosConfig";
+import SchoolLunchConfig from "./widget-configs/SchoolLunchConfig";
 
 const TYPE_LABELS: Record<string, string> = {
   clock: "Clock",
@@ -13,6 +14,7 @@ const TYPE_LABELS: Record<string, string> = {
   calendar: "Calendar",
   photos: "Photos",
   notes: "Notes",
+  school_lunch: "School Lunch",
 };
 
 interface Props {
@@ -66,6 +68,8 @@ export default function WidgetConfig({ widget, onClose, onSaved }: Props) {
         return <CalendarConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
       case "photos":
         return <PhotosConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
+      case "school_lunch":
+        return <SchoolLunchConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
       default:
         return (
           <p className="text-sm text-gray-500">

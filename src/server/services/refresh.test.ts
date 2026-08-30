@@ -21,6 +21,13 @@ vi.mock('./google-photos.js', () => ({
 vi.mock('./ical-service.js', () => ({
   fetchIcsEvents: vi.fn(),
 }))
+vi.mock('./schoolcafe.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./schoolcafe.js')>()
+  return {
+    ...actual,
+    fetchSchoolLunchMenu: vi.fn(),
+  }
+})
 vi.mock('./google-auth.js', () => ({
   getValidAccessToken: vi.fn(),
 }))
@@ -37,6 +44,7 @@ vi.mock('./apple-photos.js', async (importOriginal) => {
 
 import { fetchWeather } from './weather.js'
 import { fetchIcsEvents } from './ical-service.js'
+import { fetchSchoolLunchMenu } from './schoolcafe.js'
 import { getValidAccessToken } from './google-auth.js'
 import { fetchApplePhotos } from './apple-photos.js'
 
@@ -107,6 +115,27 @@ function seedPhotosWidget(
     `INSERT INTO widgets (layout_id, widget_type, config, position_x, position_y, width, height, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(layout.id, 'photos', JSON.stringify(widgetConfig), 0, 0, 4, 3, now, now)
+  return Number(result.lastInsertRowid)
+}
+
+function seedSchoolLunchWidget(
+  db: Database.Database,
+  widgetConfig: Record<string, unknown>,
+): number {
+  const now = new Date().toISOString()
+  let layout = db.prepare('SELECT id FROM layouts WHERE is_active = 1').get() as { id: number } | undefined
+  if (!layout) {
+    db.prepare(
+      `INSERT INTO layouts (name, columns, row_height, is_active, theme, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run('Test', 12, 80, 1, '{}', now, now)
+    layout = db.prepare('SELECT id FROM layouts WHERE is_active = 1').get() as { id: number }
+  }
+
+  const result = db.prepare(
+    `INSERT INTO widgets (layout_id, widget_type, config, position_x, position_y, width, height, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(layout.id, 'school_lunch', JSON.stringify(widgetConfig), 0, 0, 4, 3, now, now)
   return Number(result.lastInsertRowid)
 }
 
@@ -353,7 +382,75 @@ describe('collectDataSources', () => {
   })
 })
 
+describe('collectDataSources school_lunch', () => {
+  it('collects school_lunch source with deduplication', () => {
+    const lunchConfig = {
+      school_id: 'guid-1',
+      grade: '01',
+      meal_type: 'Lunch',
+      serving_line: 'Regular',
+      view: 'today',
+    }
+    seedSchoolLunchWidget(db, lunchConfig)
+    seedSchoolLunchWidget(db, lunchConfig)
+
+    const sources = collectDataSources(db)
+
+    expect(sources).toHaveLength(1)
+    expect(sources[0].type).toBe('school_lunch')
+    expect(sources[0].key).toBe('school_lunch_guid-1_01_Lunch_Regular')
+    expect(sources[0].params).toEqual({
+      school_id: 'guid-1',
+      grade: '01',
+      meal_type: 'Lunch',
+      serving_line: 'Regular',
+    })
+  })
+
+  it('applies defaults for missing optional school_lunch config', () => {
+    seedSchoolLunchWidget(db, { school_id: 'guid-1' })
+
+    const sources = collectDataSources(db)
+
+    expect(sources).toHaveLength(1)
+    expect(sources[0].key).toBe('school_lunch_guid-1_01_Lunch_Regular')
+  })
+
+  it('skips school_lunch widget without school_id', () => {
+    seedSchoolLunchWidget(db, { grade: '02' })
+
+    const sources = collectDataSources(db)
+
+    expect(sources).toHaveLength(0)
+  })
+})
+
 describe('refreshOnce', () => {
+  it('fetches school lunch source and caches result', async () => {
+    seedSchoolLunchWidget(db, {
+      school_id: 'guid-1',
+      grade: '01',
+      meal_type: 'Lunch',
+      serving_line: 'Regular',
+    })
+    const mockMenu = {
+      days: [{ date: '2026-08-31', entrees: ['Turkey Corn Dog'], vegetables: ['Steamed Corn'] }],
+    }
+    vi.mocked(fetchSchoolLunchMenu).mockResolvedValue(mockMenu)
+
+    await refreshOnce(db, config)
+
+    expect(fetchSchoolLunchMenu).toHaveBeenCalledWith({
+      school_id: 'guid-1',
+      grade: '01',
+      meal_type: 'Lunch',
+      serving_line: 'Regular',
+    })
+    const row = db.prepare("SELECT data FROM cache WHERE source = 'school_lunch_guid-1_01_Lunch_Regular'").get() as { data: string } | undefined
+    expect(row).toBeDefined()
+    expect(JSON.parse(row!.data)).toEqual(mockMenu)
+  })
+
   it('fetches weather when no cache exists', async () => {
     seedWeatherWidget(db)
     const mockData = { current: { temperature: 72 }, daily: [] }

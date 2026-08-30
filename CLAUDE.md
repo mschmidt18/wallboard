@@ -77,6 +77,7 @@ src/
       ics-calendars.ts   # ICS calendar CRUD
       integrations.ts    # Google OAuth connect/callback/disconnect
       google-data.ts     # Proxy for Google Calendar/Photos APIs
+      schoolcafe.ts      # SchoolCafé district/school lookup proxy
       display.ts         # GET /api/display (merges layout + cache), photo proxy
       system.ts          # Version info, check-update, self-update (git-based)
     services/
@@ -87,6 +88,7 @@ src/
       google-calendar.ts # Calendar list + events
       google-photos.ts   # Picker session + media items
       ical-service.ts    # ICS feed fetch + parse (node-ical)
+      schoolcafe.ts      # SchoolCafé menu API (school lunch widget)
       refresh.ts         # Background loop: collect sources, check freshness, fetch stale
     test/
       setup.ts           # Global afterEach to clear sessions
@@ -122,6 +124,7 @@ src/
 - `ics-calendars.ts` — ICS calendar CRUD
 - `integrations.ts` — Google OAuth connect/callback/disconnect
 - `google-data.ts` — proxy for Google Calendar list, Photos picker sessions
+- `schoolcafe.ts` — SchoolCafé district lookup + serving lines (school lunch widget config)
 - `display.ts` — merges active layout with cached data, photo proxy
 - `system.ts` — git version info, check-update, self-update
 
@@ -138,7 +141,7 @@ src/
 
 React 19 + TypeScript + Vite 7 + Tailwind CSS 4. Two routes: `/` (full-screen dashboard display) and `/admin/*` (configuration UI). The dashboard polls `/api/display` and renders widgets in a CSS grid. Admin uses `react-grid-layout` for drag-and-drop layout editing. In dev mode, Vite runs as middleware inside Fastify for single-port HMR. In production, Fastify serves the built frontend from `dist/frontend/`.
 
-**Widget components** (`dashboard/widgets/`): `WeatherWidget`, `CalendarWidget`, `PhotosWidget`, `ClockWidget`, `NotesWidget`
+**Widget components** (`dashboard/widgets/`): `WeatherWidget`, `CalendarWidget`, `PhotosWidget`, `ClockWidget`, `NotesWidget`, `SchoolLunchWidget`
 
 **Admin pages** (`admin/`): `AdminShell` (layout wrapper), `Layouts` (CRUD), `LayoutEditor` (drag-and-drop), `WidgetConfig` + per-type configs, `Integrations` (OAuth), `Settings`, `ThemeEditor`, `Login`
 
