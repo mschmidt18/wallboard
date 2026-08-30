@@ -5,6 +5,7 @@ import {
   formatTime,
   groupEventsByDay,
   generateWeekGrid,
+  getWorkWeekDays,
   getEventsForDate,
   isToday,
   isPast,
@@ -146,6 +147,47 @@ describe("generateWeekGrid", () => {
     // Second week starts Feb 1
     expect(grid[1][0].getMonth()).toBe(1); // February
     expect(grid[1][0].getDate()).toBe(1);
+  });
+});
+
+describe("getWorkWeekDays", () => {
+  it("returns Monday through Friday of the current week for a weekday", () => {
+    // Feb 18, 2026 is a Wednesday
+    const wednesday = new Date(2026, 1, 18);
+    const days = getWorkWeekDays(wednesday);
+    expect(days.length).toBe(5);
+    expect(days.map((d) => d.getDay())).toEqual([1, 2, 3, 4, 5]);
+    expect(days.map((d) => d.getDate())).toEqual([16, 17, 18, 19, 20]);
+  });
+
+  it("returns the same week when today is Monday or Friday", () => {
+    const monday = new Date(2026, 1, 16);
+    expect(getWorkWeekDays(monday).map((d) => d.getDate())).toEqual([16, 17, 18, 19, 20]);
+
+    const friday = new Date(2026, 1, 20);
+    expect(getWorkWeekDays(friday).map((d) => d.getDate())).toEqual([16, 17, 18, 19, 20]);
+  });
+
+  it("rolls forward to next week's Monday-Friday on Saturday", () => {
+    // Feb 21, 2026 is a Saturday
+    const saturday = new Date(2026, 1, 21);
+    const days = getWorkWeekDays(saturday);
+    expect(days.map((d) => d.getDate())).toEqual([23, 24, 25, 26, 27]);
+  });
+
+  it("rolls forward to next week's Monday-Friday on Sunday", () => {
+    // Feb 22, 2026 is a Sunday
+    const sunday = new Date(2026, 1, 22);
+    const days = getWorkWeekDays(sunday);
+    expect(days.map((d) => d.getDate())).toEqual([23, 24, 25, 26, 27]);
+  });
+
+  it("handles month boundaries", () => {
+    // Jan 31, 2026 is a Saturday; next Monday is Feb 2
+    const jan31 = new Date(2026, 0, 31);
+    const days = getWorkWeekDays(jan31);
+    expect(days[0].getMonth()).toBe(1); // February
+    expect(days.map((d) => d.getDate())).toEqual([2, 3, 4, 5, 6]);
   });
 });
 

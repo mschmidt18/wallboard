@@ -13,6 +13,11 @@ interface Props {
   onChange: (config: Record<string, unknown>) => void;
 }
 
+type CalendarView = "list" | "monthly" | "workweek";
+
+/** The work week view always covers the current (or upcoming) Mon-Fri. */
+const WORK_WEEK_DAYS_AHEAD = 7;
+
 function sourceKey(source: CalendarSource): string {
   return `${source.type}:${source.id}`;
 }
@@ -41,7 +46,7 @@ export default function CalendarConfig({ config, onChange }: Props) {
 
   const [selectedSources, setSelectedSources] = useState<CalendarSource[]>(() => initSources(config));
   const [colors, setColors] = useState<Record<string, string>>(() => initColors(config));
-  const [view, setView] = useState<"list" | "monthly">((config.view as "list" | "monthly" | undefined) ?? "list");
+  const [view, setView] = useState<CalendarView>((config.view as CalendarView | undefined) ?? "list");
   const [weeks, setWeeks] = useState<number>((config.weeks as number | undefined) ?? 4);
   const [daysAhead, setDaysAhead] = useState<number>((config.days_ahead as number | undefined) ?? 7);
   const [title, setTitle] = useState<string>((config.title as string | undefined) ?? "");
@@ -84,14 +89,14 @@ export default function CalendarConfig({ config, onChange }: Props) {
     nextColors: Record<string, string>,
     nextDays: number,
     nextTitle?: string,
-    nextView?: "list" | "monthly",
+    nextView?: CalendarView,
     nextWeeks?: number,
   ) {
     const v = nextView ?? view;
     const w = nextWeeks ?? weeks;
     const cfg: Record<string, unknown> = {
       calendar_sources: nextSources,
-      days_ahead: v === "monthly" ? w * 7 : nextDays,
+      days_ahead: v === "monthly" ? w * 7 : v === "workweek" ? WORK_WEEK_DAYS_AHEAD : nextDays,
       colors: nextColors,
       view: v,
       weeks: w,
@@ -261,19 +266,21 @@ export default function CalendarConfig({ config, onChange }: Props) {
           id="calendar-view"
           value={view}
           onChange={(e) => {
-            const v = e.target.value as "list" | "monthly";
+            const v = e.target.value as CalendarView;
             setView(v);
             emitChange(selectedSources, colors, daysAhead, undefined, v);
           }}
           className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
         >
           <option value="list">List</option>
+          <option value="workweek">Work Week</option>
           <option value="monthly">Monthly</option>
         </select>
       </div>
 
-      {/* Days ahead slider (list view) or Weeks slider (monthly view) */}
-      {view === "monthly" ? (
+      {/* Days ahead slider (list view) or Weeks slider (monthly view).
+          Work week has nothing to configure: always the current Mon-Fri. */}
+      {view === "workweek" ? null : view === "monthly" ? (
         <div>
           <label htmlFor="calendar-weeks" className="block text-sm font-medium text-gray-700 mb-1">
             Weeks to display: {weeks}

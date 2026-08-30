@@ -75,6 +75,30 @@ export function generateWeekGrid(weeks: number, today?: Date): Date[][] {
   return grid;
 }
 
+export function getWorkWeekDays(today?: Date): Date[] {
+  const ref = today ?? new Date();
+  // Monday of the week containing `ref`; on weekends roll forward to next
+  // week's Monday (past events aren't fetched, so the finished week would
+  // render empty).
+  let mondayOffset: number;
+  if (ref.getDay() === 0) {
+    mondayOffset = 1; // Sunday -> tomorrow
+  } else if (ref.getDay() === 6) {
+    mondayOffset = 2; // Saturday -> day after tomorrow
+  } else {
+    mondayOffset = 1 - ref.getDay();
+  }
+  const monday = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() + mondayOffset);
+
+  const days: Date[] = [];
+  for (let d = 0; d < 5; d++) {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + d);
+    days.push(date);
+  }
+  return days;
+}
+
 export function getEventsForDate(events: CalendarEvent[], date: Date): CalendarEvent[] {
   const y = date.getFullYear();
   const m = date.getMonth();

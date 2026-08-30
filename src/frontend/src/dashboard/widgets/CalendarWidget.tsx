@@ -3,6 +3,7 @@ import {
   groupEventsByDay,
   formatTime,
   generateWeekGrid,
+  getWorkWeekDays,
   getEventsForDate,
   isToday,
   isPast,
@@ -14,17 +15,26 @@ interface CalendarWidgetProps {
 }
 
 const DAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WORK_WEEK_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const MAX_EVENTS_PER_CELL = 6;
 
-function MonthlyGrid({ events, weeks }: { events: CalendarEvent[]; weeks: number }) {
+function CalendarGrid({
+  events,
+  grid,
+  headers,
+}: {
+  events: CalendarEvent[];
+  grid: Date[][];
+  headers: string[];
+}) {
   const today = new Date();
-  const grid = generateWeekGrid(weeks, today);
+  const columns = { gridTemplateColumns: `repeat(${headers.length}, minmax(0, 1fr))` };
 
   return (
     <div className="h-full flex flex-col">
       {/* Day-of-week header */}
-      <div className="grid grid-cols-7 mb-1">
-        {DAY_HEADERS.map((d, i) => (
+      <div className="grid mb-1" style={columns}>
+        {headers.map((d, i) => (
           <div key={i} className="text-left text-d-xs font-semibold uppercase opacity-50 pl-0.5">
             {d}
           </div>
@@ -32,9 +42,9 @@ function MonthlyGrid({ events, weeks }: { events: CalendarEvent[]; weeks: number
       </div>
 
       {/* Week rows */}
-      <div className="grid flex-1" style={{ gridTemplateRows: `repeat(${weeks}, 1fr)` }}>
+      <div className="grid flex-1" style={{ gridTemplateRows: `repeat(${grid.length}, 1fr)` }}>
         {grid.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7 min-h-0">
+          <div key={wi} className="grid min-h-0" style={columns}>
             {week.map((date, di) => {
               const dayEvents = getEventsForDate(events, date);
               const past = isPast(date, today);
@@ -116,16 +126,19 @@ export default function CalendarWidget({ config, data }: CalendarWidgetProps) {
   }
 
   const isMonthly = config.view === "monthly";
+  const isWorkWeek = config.view === "workweek";
 
-  if (isMonthly) {
+  if (isMonthly || isWorkWeek) {
     const weeks = (config.weeks as number | undefined) ?? 4;
+    const grid = isWorkWeek ? [getWorkWeekDays()] : generateWeekGrid(weeks);
+    const headers = isWorkWeek ? WORK_WEEK_HEADERS : DAY_HEADERS;
     return (
       <div className="h-full overflow-hidden p-4 flex flex-col">
         {config.title ? (
           <h2 className="text-d-lg font-semibold mb-2">{String(config.title)}</h2>
         ) : null}
         <div className="flex-1 min-h-0">
-          <MonthlyGrid events={events} weeks={weeks} />
+          <CalendarGrid events={events} grid={grid} headers={headers} />
         </div>
       </div>
     );
