@@ -101,31 +101,36 @@ export default function LayoutEditor() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(900);
 
-  const fetchLayout = useCallback(async () => {
-    try {
-      setError(null);
-      const data = await api.getLayout(layoutId);
-      setLayout(data);
-      setSettingsForm({
-        name: data.name,
-        columns: data.columns,
-        row_height: data.row_height,
-      });
-      setThemeForm({
-        ...data.theme,
-        background: data.theme?.background ?? DEFAULT_THEME.background,
-        text_color: data.theme?.text_color ?? DEFAULT_THEME.text_color,
-        widget_background: data.theme?.widget_background ?? DEFAULT_THEME.widget_background,
-        font_family: data.theme?.font_family ?? DEFAULT_THEME.font_family,
-        font_scale: data.theme?.font_scale ?? DEFAULT_THEME.font_scale,
-      });
-      gridLayoutRef.current = widgetsToGridLayout(data.widgets);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load layout");
-    } finally {
-      setLoading(false);
-    }
-  }, [layoutId]);
+  const fetchLayout = useCallback(
+    () =>
+      api
+        .getLayout(layoutId)
+        .then((data) => {
+          setError(null);
+          setLayout(data);
+          setSettingsForm({
+            name: data.name,
+            columns: data.columns,
+            row_height: data.row_height,
+          });
+          setThemeForm({
+            ...data.theme,
+            background: data.theme?.background ?? DEFAULT_THEME.background,
+            text_color: data.theme?.text_color ?? DEFAULT_THEME.text_color,
+            widget_background: data.theme?.widget_background ?? DEFAULT_THEME.widget_background,
+            font_family: data.theme?.font_family ?? DEFAULT_THEME.font_family,
+            font_scale: data.theme?.font_scale ?? DEFAULT_THEME.font_scale,
+          });
+          gridLayoutRef.current = widgetsToGridLayout(data.widgets);
+        })
+        .catch((err: unknown) => {
+          setError(err instanceof Error ? err.message : "Failed to load layout");
+        })
+        .finally(() => {
+          setLoading(false);
+        }),
+    [layoutId],
+  );
 
   useEffect(() => {
     fetchLayout();
@@ -513,7 +518,7 @@ export default function LayoutEditor() {
         if (!selectedWidget) return null;
         return (
           <WidgetConfig
-            key={selectedWidget.id}
+            key={`${selectedWidget.id}:${JSON.stringify(selectedWidget.config)}`}
             widget={selectedWidget}
             onClose={() => setSelectedWidgetId(null)}
             onSaved={() => fetchLayout()}

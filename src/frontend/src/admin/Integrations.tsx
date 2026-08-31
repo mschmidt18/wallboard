@@ -23,26 +23,35 @@ export default function Integrations() {
 
   const justConnected = searchParams.get("connected") === "true";
 
-  const fetchIntegrations = useCallback(async () => {
-    try {
-      setError(null);
-      const data = await api.getIntegrations();
-      setIntegrations(data);
-    } catch {
-      setError("Failed to load integrations.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchIntegrations = useCallback(
+    () =>
+      api
+        .getIntegrations()
+        .then((data) => {
+          setError(null);
+          setIntegrations(data);
+        })
+        .catch(() => {
+          setError("Failed to load integrations.");
+        })
+        .finally(() => {
+          setLoading(false);
+        }),
+    [],
+  );
 
-  const fetchIcsCalendars = useCallback(async () => {
-    try {
-      const data = await api.getIcsCalendars();
-      setIcsCalendars(data);
-    } catch {
-      // Silently fail — ICS section will just be empty
-    }
-  }, []);
+  const fetchIcsCalendars = useCallback(
+    () =>
+      api
+        .getIcsCalendars()
+        .then((data) => {
+          setIcsCalendars(data);
+        })
+        .catch(() => {
+          // Silently fail — ICS section will just be empty
+        }),
+    [],
+  );
 
   useEffect(() => {
     fetchIntegrations();
@@ -52,8 +61,8 @@ export default function Integrations() {
   // Clear the ?connected=true param after showing success
   useEffect(() => {
     if (justConnected) {
-      setShowCodeEntry(false);
       const timer = setTimeout(() => {
+        setShowCodeEntry(false);
         setSearchParams({}, { replace: true });
       }, 5000);
       return () => clearTimeout(timer);
@@ -299,7 +308,7 @@ export default function Integrations() {
           </div>
 
           {/* Manual code entry */}
-          {showCodeEntry && !isConnected && (
+          {showCodeEntry && !isConnected && !justConnected && (
             <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-4">
               <p className="text-sm text-blue-800">
                 After authorizing in the popup, if you are redirected to a page that

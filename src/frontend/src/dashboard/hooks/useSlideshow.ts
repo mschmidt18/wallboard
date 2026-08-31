@@ -23,34 +23,34 @@ export function isVideoUrl(url: string): boolean {
   }
 }
 
+function shuffle(photos: Photo[]): Photo[] {
+  const arr = [...photos];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export function useSlideshow(photos: Photo[], intervalMs: number): SlideshowResult {
   const [showFront, setShowFront] = useState(true);
-  const indexRef = useRef(0);
   const [frontSrc, setFrontSrc] = useState<string | null>(null);
   const [backSrc, setBackSrc] = useState<string | null>(null);
+  const indexRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Shuffled photo order lives in a ref so setTimeout callbacks always see the latest set
+  const shuffledRef = useRef<Photo[]>([]);
+  const intervalRef = useRef(intervalMs);
 
   const photosKey = useMemo(
     () => photos.map((p) => p.url).join(","),
     [photos],
   );
+  const photoCount = photos.length;
 
-  const shuffled: Photo[] = useMemo(() => {
-    const arr = [...photos];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-shuffle only when photo set changes
-  }, [photosKey]);
-
-  // Use ref so setTimeout callbacks always see latest shuffled array
-  const shuffledRef = useRef(shuffled);
-  shuffledRef.current = shuffled;
-
-  const intervalRef = useRef(intervalMs);
-  intervalRef.current = intervalMs;
+  useEffect(() => {
+    intervalRef.current = intervalMs;
+  }, [intervalMs]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -89,7 +89,9 @@ export function useSlideshow(photos: Photo[], intervalMs: number): SlideshowResu
   }, [clearTimer]);
 
   const scheduleRef = useRef(scheduleNext);
-  scheduleRef.current = scheduleNext;
+  useEffect(() => {
+    scheduleRef.current = scheduleNext;
+  }, [scheduleNext]);
 
   useEffect(() => {
     advanceFnRef.current = () => {
@@ -120,33 +122,43 @@ export function useSlideshow(photos: Photo[], intervalMs: number): SlideshowResu
     advanceFnRef.current();
   }, []);
 
-  // Initialize the first image when the photo set changes.
+  // Re-shuffle and show the first image when the photo set changes.
   useEffect(() => {
-    if (shuffled.length === 0) return;
-    const url = shuffled[0].url;
+    const arr = shuffle(photos);
+    shuffledRef.current = arr;
     indexRef.current = 0;
-    setFrontSrc(url);
-    setBackSrc(null);
-    setShowFront(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- photosKey is the stable dep
-  }, [photosKey]);
+    if (arr.length === 0) return;
+
+    let cancelled = false;
+    const url = arr[0].url;
+    preload(url).then(() => {
+      if (cancelled) return;
+      setFrontSrc(url);
+      setBackSrc(null);
+      setShowFront(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- photosKey is the stable dep for photos
+  }, [photosKey, preload]);
 
   // Start cycling timer
   useEffect(() => {
-    if (shuffled.length <= 1) return;
+    if (photoCount <= 1) return;
 
     scheduleRef.current();
 
     return () => {
       clearTimer();
     };
-  }, [shuffled.length, intervalMs, photosKey, clearTimer]);
+  }, [photoCount, intervalMs, photosKey, clearTimer]);
 
   return {
     frontSrc,
     backSrc,
     showFront,
-    hasPhotos: shuffled.length > 0,
+    hasPhotos: photoCount > 0,
     advance,
   };
 }

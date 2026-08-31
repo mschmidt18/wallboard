@@ -71,30 +71,34 @@ export default function Settings() {
   const [backupFeedback, setBackupFeedback] = useState<FeedbackState>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const loadSettings = useCallback(
+    () =>
+      api
+        .getSettings()
+        .then((data) => {
+          setSettings({
+            google_client_id: data.google_client_id ?? "",
+            google_client_secret: data.google_client_secret ?? "",
+            display_refresh_interval: data.display_refresh_interval ?? 60,
+            log_level: data.log_level ?? "INFO",
+            scheduling_enabled: data.scheduling_enabled ?? false,
+          });
+        })
+        .catch(() => {
+          setFeedback({ type: "error", message: "Failed to load settings." });
+        })
+        .finally(() => {
+          setLoading(false);
+        }),
+    [],
+  );
+
   useEffect(() => {
     loadSettings();
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, []);
-
-  async function loadSettings() {
-    setLoading(true);
-    try {
-      const data = await api.getSettings();
-      setSettings({
-        google_client_id: data.google_client_id ?? "",
-        google_client_secret: data.google_client_secret ?? "",
-        display_refresh_interval: data.display_refresh_interval ?? 60,
-        log_level: data.log_level ?? "INFO",
-        scheduling_enabled: data.scheduling_enabled ?? false,
-      });
-    } catch {
-      setFeedback({ type: "error", message: "Failed to load settings." });
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [loadSettings]);
 
   async function handleSaveSettings(e: FormEvent) {
     e.preventDefault();
