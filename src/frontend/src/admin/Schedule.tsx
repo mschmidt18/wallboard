@@ -57,23 +57,23 @@ export default function Schedule() {
   const [form, setForm] = useState<RuleFormData>({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setError(null);
-      const [rulesData, layoutsData, settings] = await Promise.all([
-        api.getScheduleRules(),
-        api.getLayouts(),
-        api.getSettings(),
-      ]);
-      setRules(rulesData);
-      setLayouts(layoutsData);
-      setSchedulingEnabled((settings as Settings).scheduling_enabled ?? false);
-    } catch {
-      setError("Failed to load schedule data.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchData = useCallback(
+    () =>
+      Promise.all([api.getScheduleRules(), api.getLayouts(), api.getSettings()])
+        .then(([rulesData, layoutsData, settings]) => {
+          setError(null);
+          setRules(rulesData);
+          setLayouts(layoutsData);
+          setSchedulingEnabled((settings as Settings).scheduling_enabled ?? false);
+        })
+        .catch(() => {
+          setError("Failed to load schedule data.");
+        })
+        .finally(() => {
+          setLoading(false);
+        }),
+    [],
+  );
 
   useEffect(() => {
     fetchData();

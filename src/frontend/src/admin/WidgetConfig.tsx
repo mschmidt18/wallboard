@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import type { Widget } from "../shared/types";
 import { api } from "../shared/api";
 import ClockConfig from "./widget-configs/ClockConfig";
@@ -24,18 +24,12 @@ interface Props {
 }
 
 export default function WidgetConfig({ widget, onClose, onSaved }: Props) {
+  // State resets when the widget or its saved config changes via the parent's
+  // key prop (see LayoutEditor), so no sync effect is needed here.
   const [config, setConfig] = useState<Record<string, unknown>>(widget.config);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-
-  const configJson = JSON.stringify(widget.config);
-
-  useEffect(() => {
-    setConfig(JSON.parse(configJson));
-    setDirty(false);
-    setError(null);
-  }, [widget.id, configJson]);
 
   const handleChange = useCallback((newConfig: Record<string, unknown>) => {
     setConfig(newConfig);
@@ -59,17 +53,17 @@ export default function WidgetConfig({ widget, onClose, onSaved }: Props) {
   function renderConfigForm() {
     switch (widget.widget_type) {
       case "clock":
-        return <ClockConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
+        return <ClockConfig config={config} onChange={handleChange} />;
       case "notes":
-        return <NotesConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
+        return <NotesConfig config={config} onChange={handleChange} />;
       case "weather":
-        return <WeatherConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
+        return <WeatherConfig config={config} onChange={handleChange} />;
       case "calendar":
-        return <CalendarConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
+        return <CalendarConfig config={config} onChange={handleChange} />;
       case "photos":
-        return <PhotosConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
+        return <PhotosConfig config={config} onChange={handleChange} />;
       case "school_lunch":
-        return <SchoolLunchConfig key={widget.id + configJson} config={config} onChange={handleChange} />;
+        return <SchoolLunchConfig config={config} onChange={handleChange} />;
       default:
         return (
           <p className="text-sm text-gray-500">

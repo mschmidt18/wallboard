@@ -35,14 +35,13 @@ export default function SchoolLunchConfig({ config, onChange }: Props) {
   const servingLine = (config.serving_line as string | undefined) ?? "Regular";
   const view = (config.view as string | undefined) ?? "today";
 
-  const configRef = useRef(config);
-  configRef.current = config;
-
+  // emit is only called from event handlers, so it can close over the
+  // current config prop directly.
   const emit = useCallback(
     (patch: Record<string, unknown>) => {
-      onChange({ ...configRef.current, ...patch });
+      onChange({ ...config, ...patch });
     },
-    [onChange],
+    [config, onChange],
   );
 
   const lookup = useCallback(
